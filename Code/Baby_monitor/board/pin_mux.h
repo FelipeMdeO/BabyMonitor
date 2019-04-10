@@ -60,11 +60,6 @@ typedef enum _pin_mux_direction
 extern "C" {
 #endif
 
-/*!
- * @brief Calls initialization functions.
- *
- */
-void BOARD_InitBootPins(void);
 
 #define SOPT5_UART0RXSRC_UART_RX 0x00u /*!<@brief UART0 receive data source select: UART0_RX pin */
 #define SOPT5_UART0TXSRC_UART_TX 0x00u /*!<@brief UART0 transmit data source select: UART0_TX pin */
@@ -74,6 +69,18 @@ void BOARD_InitBootPins(void);
  *
  */
 void BOARD_InitPins(void);
+
+/*!
+ * @brief Configures pin routing and optionally pin electrical features.
+ *
+ */
+void I2C0_InitPins(void);
+
+/*!
+ * @brief Configures pin routing and optionally pin electrical features.
+ *
+ */
+void I2C0_DeinitPins(void);
 
 #if defined(__cplusplus)
 }

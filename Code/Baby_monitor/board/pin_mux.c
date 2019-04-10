@@ -49,16 +49,7 @@ processor_version: 0.0.9
 #include "fsl_port.h"
 #include "pin_mux.h"
 
-/* FUNCTION ************************************************************************************************************
- *
- * Function Name : BOARD_InitBootPins
- * Description   : Calls initialization functions.
- *
- * END ****************************************************************************************************************/
-void BOARD_InitBootPins(void)
-{
-    BOARD_InitPins();
-}
+
 
 /* clang-format off */
 /*
@@ -99,6 +90,131 @@ void BOARD_InitPins(void)
                   /* UART0 receive data source select: UART0_RX pin. */
                   | SIM_SOPT5_UART0RXSRC(SOPT5_UART0RXSRC_UART_RX));
 }
+
+/* clang-format off */
+/*
+ * TEXT BELOW IS USED AS SETTING FOR TOOLS *************************************
+I2C0_InitPins:
+- options: {coreID: core0, enableClock: 'true'}
+- pin_list:
+  - {pin_num: '23', peripheral: I2C0, signal: SCL, pin_signal: PTB3/IRQ_10/I2C0_SCL/UART0_TX, pull_enable: enable}
+  - {pin_num: '24', peripheral: I2C0, signal: SDA, pin_signal: PTB4/IRQ_11/I2C0_SDA/UART0_RX, pull_enable: enable}
+ * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS ***********
+ */
+/* clang-format on */
+
+/* FUNCTION ************************************************************************************************************
+ *
+ * Function Name : I2C0_InitPins
+ * Description   : Configures pin routing and optionally pin electrical features.
+ *
+ * END ****************************************************************************************************************/
+void I2C0_InitPins(void)
+{
+    /* Port B Clock Gate Control: Clock enabled */
+    CLOCK_EnableClock(kCLOCK_PortB);
+
+    const port_pin_config_t portb3_pin23_config = {/* Internal pull-up resistor is enabled */
+                                                   kPORT_PullUp,
+                                                   /* Passive filter is disabled */
+                                                   kPORT_PassiveFilterDisable,
+                                                   /* Low drive strength is configured */
+                                                   kPORT_LowDriveStrength,
+                                                   /* Pin is configured as I2C0_SCL */
+                                                   kPORT_MuxAlt2};
+    /* PORTB3 (pin 23) is configured as I2C0_SCL */
+    PORT_SetPinConfig(PORTB, 3U, &portb3_pin23_config);
+
+    const port_pin_config_t portb4_pin24_config = {/* Internal pull-up resistor is enabled */
+                                                   kPORT_PullUp,
+                                                   /* Passive filter is disabled */
+                                                   kPORT_PassiveFilterDisable,
+                                                   /* Low drive strength is configured */
+                                                   kPORT_LowDriveStrength,
+                                                   /* Pin is configured as I2C0_SDA */
+                                                   kPORT_MuxAlt2};
+    /* PORTB4 (pin 24) is configured as I2C0_SDA */
+    PORT_SetPinConfig(PORTB, 4U, &portb4_pin24_config);
+}
+
+/* clang-format off */
+/*
+ * TEXT BELOW IS USED AS SETTING FOR TOOLS *************************************
+I2C0_DeinitPins:
+- options: {coreID: core0, enableClock: 'true'}
+- pin_list:
+  - {pin_num: '23', peripheral: n/a, signal: disabled, pin_signal: PTB3/IRQ_10/I2C0_SCL/UART0_TX}
+  - {pin_num: '24', peripheral: n/a, signal: disabled, pin_signal: PTB4/IRQ_11/I2C0_SDA/UART0_RX}
+ * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS ***********
+ */
+/* clang-format on */
+
+/* FUNCTION ************************************************************************************************************
+ *
+ * Function Name : I2C0_DeinitPins
+ * Description   : Configures pin routing and optionally pin electrical features.
+ *
+ * END ****************************************************************************************************************/
+void I2C0_DeinitPins(void)
+{
+    /* Port B Clock Gate Control: Clock enabled */
+    CLOCK_EnableClock(kCLOCK_PortB);
+
+    /* PORTB3 (pin 23) is disabled */
+    PORT_SetPinMux(PORTB, 3U, kPORT_PinDisabledOrAnalog);
+
+    /* PORTB4 (pin 24) is disabled */
+    PORT_SetPinMux(PORTB, 4U, kPORT_PinDisabledOrAnalog);
+}
+/* FUNCTION ************************************************************************************************************
+ *
+ * Function Name : UART0_DeinitPins
+ * Description   : Configures pin routing and optionally pin electrical features.
+ *
+ * END ****************************************************************************************************************/
+void UART0_DeinitPins(void)
+{
+    /* Port B Clock Gate Control: Clock enabled */
+    CLOCK_EnableClock(kCLOCK_PortB);
+
+    /* PORTB1 (pin 17) is configured as CMP0_IN3 */
+    PORT_SetPinMux(PORTB, 1U, kPORT_PinDisabledOrAnalog);
+
+    /* PORTB2 (pin 18) is configured as ADC0_SE4 */
+    PORT_SetPinMux(PORTB, 2U, kPORT_PinDisabledOrAnalog);
+}
+
+/* clang-format on */
+
+/* FUNCTION ************************************************************************************************************
+ *
+ * Function Name : UART0_InitPins
+ * Description   : Configures pin routing and optionally pin electrical features.
+ *
+ * END ****************************************************************************************************************/
+void UART0_InitPins(void)
+{
+    /* Port B Clock Gate Control: Clock enabled */
+    CLOCK_EnableClock(kCLOCK_PortB);
+
+    /* PORTB1 (pin 17) is configured as UART0_TX */
+    PORT_SetPinMux(PORTB, 1U, kPORT_MuxAlt2);
+
+    /* PORTB2 (pin 18) is configured as UART0_RX */
+    PORT_SetPinMux(PORTB, 2U, kPORT_MuxAlt2);
+
+    SIM->SOPT5 = ((SIM->SOPT5 &
+                   /* Mask bits to zero which are setting */
+                   (~(SIM_SOPT5_UART0TXSRC_MASK | SIM_SOPT5_UART0RXSRC_MASK)))
+
+                  /* UART0 transmit data source select: UART0_TX pin. */
+                  | SIM_SOPT5_UART0TXSRC(SOPT5_UART0TXSRC_UART_TX)
+
+                  /* UART0 receive data source select: UART0_RX pin. */
+                  | SIM_SOPT5_UART0RXSRC(SOPT5_UART0RXSRC_UART_RX));
+}
+
+/* clang-format off */
 /***********************************************************************************************************************
  * EOF
  **********************************************************************************************************************/
