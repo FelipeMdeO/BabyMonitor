@@ -48,6 +48,9 @@
 #include "fsl_lpsci_cmsis.h"
 #include "Driver_USART.h"
 
+#include "fsl_lptmr.h"
+
+
 /* Code includes */
 #include "max30100/max30100.h"
 
@@ -68,6 +71,20 @@
 #define APP_USART Driver_USART0
 #define ECHO_BUFFER_LENGTH 8
 
+/*			LPTMR Definitions					*/
+#define DEMO_LPTMR_BASE LPTMR0
+#define DEMO_LPTMR_IRQn LPTMR0_IRQn
+#define LPTMR_LED_HANDLER LPTMR0_IRQHandler
+/* Get source clock for LPTMR driver */
+#define LPTMR_SOURCE_CLOCK CLOCK_GetFreq(kCLOCK_LpoClk)
+/* Define LPTMR microseconds counts value */
+#define LPTMR_USEC_COUNT 10000U /* 10 ms */
+#define LED_INIT() LED_RED_INIT(LOGIC_LED_ON)
+#define LED_TOGGLE() LED_RED_TOGGLE()
+
+/*		DEBUG Define	*/
+//	#define MAX30100_DEBUG
+
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
@@ -76,6 +93,7 @@ void BOARD_I2C_ReleaseBus(void);
 static bool I2C_WriteReg(uint8_t device_addr, uint8_t reg_addr, uint8_t value);
 static bool I2C_ReadRegs(uint8_t device_addr, uint8_t reg_addr, uint8_t *rxBuff, uint32_t rxSize);
 static void MAX30100_ClearFIFO(void);
+static void USART_Printf(const char* string);
 
 /*								USART user Signal Event 												*/
 void USART_SignalEvent_t(uint32_t event);
@@ -91,10 +109,23 @@ volatile bool nakFlag = false;
 uint8_t g_txBuffer[ECHO_BUFFER_LENGTH] = { 0 }; 	/*	Data buffer 1 byte								*/
 volatile bool txOnGoing = false; 					/*	Variable to identify if data finished transfer	*/
 
-
+volatile uint32_t lptmrCounter = 0U;
 /*******************************************************************************
  * Code
  ******************************************************************************/
+
+void LPTMR_LED_HANDLER(void)
+{
+    LPTMR_ClearStatusFlags(DEMO_LPTMR_BASE, kLPTMR_TimerCompareFlag);
+    lptmrCounter++;
+    /*
+     * Workaround for TWR-KV58: because write buffer is enabled, adding
+     * memory barrier instructions to make sure clearing interrupt flag completed
+     * before go out ISR
+     */
+    __DSB();
+    __ISB();
+}
 
 uint32_t UART0_GetFreq(void)
 {
@@ -372,8 +403,6 @@ static void MAX30100_readFIFO(bool completeRead)
 	 *
 	 */
 
-	// TODO Why send msg only to WR_PTR register the OVF and RD reply also ?
-
 	uint8_t readBuff[3] = { 0 };
 	uint8_t FIFO_buff[64] = { 0 }; 									 /*!<  FIFO buffer                           */
 	uint16_t FIFO_IR_samples[16];                                    /*!<  FIFO IR buffer                        */
@@ -385,6 +414,8 @@ static void MAX30100_readFIFO(bool completeRead)
 	uint8_t OVF_COUNTER = 0;
 	uint8_t FIFO_RD_PTR = 0;
 
+	char value[50] = { 0 };
+
 	/* First Clear FIFO */
 	//MAX30100_ClearFIFO();
 
@@ -395,6 +426,13 @@ static void MAX30100_readFIFO(bool completeRead)
 	FIFO_WR_PTR = readBuff[0];
 	OVF_COUNTER = readBuff[1];
 	FIFO_RD_PTR = readBuff[2];
+
+	sprintf(value, "Value of WRP = 0x%x\r\n", FIFO_WR_PTR);
+	USART_Printf(value);
+	sprintf(value, "Value of OVF = 0x%x\r\n", OVF_COUNTER);
+	USART_Printf(value);
+	sprintf(value, "Value of RD_PTR = 0x%x\r\n", FIFO_RD_PTR);
+	USART_Printf(value);
 
 #ifdef MAX30100_DEBUG
 	//PRINTF("The new value to WR_PTR[0] is 0x%x\r\n", FIFO_WR_PTR);
@@ -465,9 +503,7 @@ static void MAX30100_readFIFO(bool completeRead)
 		}
 	}
 }
-/*!
- * @brief Main function
- */
+
 static void MAX30100_ClearFIFO(void) {
 	/*
 	 * @brief  MAX30100_ClearFIFO
@@ -513,10 +549,12 @@ static void MAX30100_ClearFIFO(void) {
 
 static void readFIFO()
 {
-	uint8_t  buffer[4] = { 0 };
-	uint8_t output = 0;
+	uint8_t  buffer[4 * 16] = { 0 };
+	uint16_t output = 0;
 	uint8_t readBuff[3] = { 0 };
+	char value[50] = { 0 };
 
+	/* Read Fifo write pointer */
 	I2C_ReadRegs(MAX30100_DEVICE, MAX30100_FIFO_WRITE_POINTER, readBuff, 3);
 
 #ifdef MAX30100_DEBUG
@@ -525,8 +563,34 @@ static void readFIFO()
 	PRINTF("Value of RD_PTR = 0x%x\r\n", readBuff[2]);
 #endif
 
-	I2C_ReadRegs(MAX30100_DEVICE, MAX30100_FIFO_DATA, buffer, 4);
-	output = (buffer[0] << 8) | buffer[1];
+	sprintf(value, "Value of WRP = 0x%x\r\n", readBuff[0]);
+	USART_Printf(value);
+	sprintf(value, "Value of OVF = 0x%x\r\n", readBuff[1]);
+	USART_Printf(value);
+	sprintf(value, "Value of RD_PTR = 0x%x\r\n", readBuff[2]);
+	USART_Printf(value);
+
+	int numberOfSamples = readBuff[0] - readBuff[2];
+
+	if (numberOfSamples < 0) {
+		numberOfSamples += 16;
+	} else	if ( readBuff[1] == 0xF )	{
+		numberOfSamples = 16;
+	}
+
+	if ( numberOfSamples > 0 )
+	{
+		sprintf(value, "Number of samples = %d\r\n", numberOfSamples);
+		USART_Printf(value);
+
+		I2C_ReadRegs(MAX30100_DEVICE, MAX30100_FIFO_DATA, buffer, numberOfSamples*4);
+		for (uint8_t i = 0; i < numberOfSamples; ++i)
+		{
+			output = (buffer[i*4] << 8) | buffer[1 + i * 4];
+			sprintf(value, " S[%d] = %04x\r\n", i, output);
+			USART_Printf(value);
+		}
+	}
 
 
 #ifdef MAX30100_DEBUG
@@ -535,10 +599,19 @@ static void readFIFO()
 
 }
 
+static void USART_Printf(const char* string)
+{
+	APP_USART.Send(string, strlen(string));
+	while (txOnGoing)
+	{
+
+	}
+
+	txOnGoing = 1;
+}
+
 int main(void)
 {
-
-	const uint8_t text1[] = "Application Starting";
 
     BOARD_InitPins();
     BOARD_BootClockRUN();
@@ -551,14 +624,44 @@ int main(void)
     APP_USART.PowerControl(ARM_POWER_FULL);
     APP_USART.Control(ARM_USART_MODE_ASYNCHRONOUS, BOARD_DEBUG_UART_BAUDRATE);
 
+    /*		LPTMR Variables		*/
+    uint32_t currentCounter = 0U;
+    lptmr_config_t lptmrConfig;
+
+    /* Configure LPTMR */
+    /*
+     * lptmrConfig.timerMode = kLPTMR_TimerModeTimeCounter;
+     * lptmrConfig.pinSelect = kLPTMR_PinSelectInput_0;
+     * lptmrConfig.pinPolarity = kLPTMR_PinPolarityActiveHigh;
+     * lptmrConfig.enableFreeRunning = false;
+     * lptmrConfig.bypassPrescaler = true;
+     * lptmrConfig.prescalerClockSource = kLPTMR_PrescalerClock_1;
+     * lptmrConfig.value = kLPTMR_Prescale_Glitch_0;
+     */
+
+    LPTMR_GetDefaultConfig(&lptmrConfig);
+
+    /* Initialize the LPTMR */
+    LPTMR_Init(DEMO_LPTMR_BASE, &lptmrConfig);
+
+    /*
+     * Set timer period.
+     * Note : the parameter "ticks" of LPTMR_SetTimerPeriod should be equal or greater than 1.
+     */
+    LPTMR_SetTimerPeriod(DEMO_LPTMR_BASE, USEC_TO_COUNT(LPTMR_USEC_COUNT, LPTMR_SOURCE_CLOCK));
+
+    /* Enable timer interrupt */
+    LPTMR_EnableInterrupts(DEMO_LPTMR_BASE, kLPTMR_TimerInterruptEnable);
+
+    /* Enable at the NVIC */
+    EnableIRQ(DEMO_LPTMR_IRQn);
+
+    /* Start counting */
+    LPTMR_StartTimer(DEMO_LPTMR_BASE);
+
+    LED_INIT();
+
     txOnGoing = true;
-
-    // TODO Fazer um driver pra encapsular o envio de mensagens abaixo
-    APP_USART.Send(text1, sizeof(text1) - 1);
-    while (txOnGoing)
-    {
-
-    }
 
 
 #ifdef MAX30100_DEBUG
@@ -577,10 +680,21 @@ int main(void)
 #endif
     for(;;)
     {
+    	if (currentCounter != lptmrCounter)
+    	{
+    		currentCounter = lptmrCounter;
+    		readFIFO();
+    		//MAX30100_readFIFO(0);
+    		if (lptmrCounter > 99) {
+    			lptmrCounter = 0;
+    			 //USART_Printf("100 reads\r\n");
+    			 LED_TOGGLE();
+			}
+    	}
     	//readFIFO();
     	//MAX30100_readFIFO(0);
 #ifdef MAX30100_DEBUG
-    	PRINTF("---------------------------------------------\r\n");
+    	//PRINTF("---------------------------------------------\r\n");
 #endif
     }
 

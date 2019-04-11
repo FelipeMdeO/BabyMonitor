@@ -80,6 +80,9 @@ void BOARD_InitPins(void)
     /* PORTB2 (pin 18) is configured as UART0_RX */
     PORT_SetPinMux(PORTB, 2U, kPORT_MuxAlt2);
 
+    /* PORTB6 (pin 1) is configured as PTB6 */
+    PORT_SetPinMux(PORTB, 6U, kPORT_MuxAsGpio);
+
     SIM->SOPT5 = ((SIM->SOPT5 &
                    /* Mask bits to zero which are setting */
                    (~(SIM_SOPT5_UART0TXSRC_MASK | SIM_SOPT5_UART0RXSRC_MASK)))
