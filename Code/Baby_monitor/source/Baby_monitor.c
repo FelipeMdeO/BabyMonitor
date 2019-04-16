@@ -110,6 +110,8 @@ uint8_t g_txBuffer[ECHO_BUFFER_LENGTH] = { 0 }; 	/*	Data buffer 1 byte								*/
 volatile bool txOnGoing = false; 					/*	Variable to identify if data finished transfer	*/
 
 volatile uint32_t lptmrCounter = 0U;
+
+uint32_t count = 0U;
 /*******************************************************************************
  * Code
  ******************************************************************************/
@@ -131,6 +133,7 @@ uint32_t UART0_GetFreq(void)
 {
 	return CLOCK_GetFreq(kCLOCK_CoreSysClk);
 }
+
 void USART_SignalEvent_t(uint32_t event)
 {
 	if (ARM_USART_EVENT_SEND_COMPLETE == event)
@@ -563,12 +566,14 @@ static void readFIFO()
 	PRINTF("Value of RD_PTR = 0x%x\r\n", readBuff[2]);
 #endif
 
+#ifdef MAX30100_DEBUG
 	sprintf(value, "Value of WRP = 0x%x\r\n", readBuff[0]);
 	USART_Printf(value);
 	sprintf(value, "Value of OVF = 0x%x\r\n", readBuff[1]);
 	USART_Printf(value);
 	sprintf(value, "Value of RD_PTR = 0x%x\r\n", readBuff[2]);
 	USART_Printf(value);
+#endif
 
 	int numberOfSamples = readBuff[0] - readBuff[2];
 
@@ -580,21 +585,26 @@ static void readFIFO()
 
 	if ( numberOfSamples > 0 )
 	{
+#ifdef MAX30100_DEBUG
 		sprintf(value, "Number of samples = %d\r\n", numberOfSamples);
 		USART_Printf(value);
-
+#endif
 		I2C_ReadRegs(MAX30100_DEVICE, MAX30100_FIFO_DATA, buffer, numberOfSamples*4);
 		for (uint8_t i = 0; i < numberOfSamples; ++i)
 		{
+			count++; /* TODO remove this variable when validate UART */
 			output = (buffer[i*4] << 8) | buffer[1 + i * 4];
-			sprintf(value, " S[%d] = %04x\r\n", i, output);
+#ifdef MAX30100_DEBUG
+			sprintf(value, " S[%d] = %04x\r\n", i, output); /* Todo return to 4 bytes when use 2 leds*/
+#else
+			sprintf(value, "%d %04x\r\n", i, output);
 			USART_Printf(value);
+#endif
 		}
 	}
 
-
 #ifdef MAX30100_DEBUG
-	PRINTF("IR output = 0x%x \r\n", output);
+	PRINTF("IR output = 0x%x\r\n", output);
 #endif
 
 }
@@ -663,10 +673,12 @@ int main(void)
 
     txOnGoing = true;
 
+    //USART_Printf("Application Starting\r\n");
 
 #ifdef MAX30100_DEBUG
     PRINTF("\r\nI2C test -- Read MAX30100 Value\r\n");
 #endif
+
     I2C_Init();
 
     MAX30100_Init();
