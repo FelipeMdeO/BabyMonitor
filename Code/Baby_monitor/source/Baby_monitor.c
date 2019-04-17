@@ -111,7 +111,6 @@ volatile bool txOnGoing = false; 					/*	Variable to identify if data finished t
 
 volatile uint32_t lptmrCounter = 0U;
 
-uint32_t count = 0U;
 /*******************************************************************************
  * Code
  ******************************************************************************/
@@ -592,12 +591,11 @@ static void readFIFO()
 		I2C_ReadRegs(MAX30100_DEVICE, MAX30100_FIFO_DATA, buffer, numberOfSamples*4);
 		for (uint8_t i = 0; i < numberOfSamples; ++i)
 		{
-			count++; /* TODO remove this variable when validate UART */
 			output = (buffer[i*4] << 8) | buffer[1 + i * 4];
 #ifdef MAX30100_DEBUG
 			sprintf(value, " S[%d] = %04x\r\n", i, output); /* Todo return to 4 bytes when use 2 leds*/
 #else
-			sprintf(value, "%d %04x\r\n", i, output);
+			sprintf(value, "%04x\r\n", output);
 			USART_Printf(value);
 #endif
 		}
@@ -621,6 +619,7 @@ static void USART_Printf(const char* string)
 }
 
 int main(void)
+
 {
 
     BOARD_InitPins();
