@@ -66,6 +66,14 @@ def dcRemoval(x, prev_w, alpha):
 
 
 list_of_values = zeros(MEAN_FILTER_SIZE)  #list of data to mean median filter
+bt_filtered = zeros(2)  # values of butterworthfilter
+
+
+def lowPassButterworthFilter(sample):
+    bt_filtered[0] = bt_filtered[1]
+    bt_filtered[1] = (2.452372752527856026e-1 * sample) + (0.50952544949442879485 * bt_filtered[0])
+    return bt_filtered[0] + bt_filtered[1]
+
 
 while True:
     while ser.inWaiting() == 0:
@@ -75,8 +83,10 @@ while True:
     readOut = readOut.rstrip()  # remocao do \n
     readOut = float.fromhex(readOut)
 
+    # DC Removal filter
     filtered_output = dcRemoval(readOut, prev_w=PREV_W, alpha=ALPHA)
 
+    # Mean Median Filter
     my_sum = my_sum - list_of_values[my_index]
     list_of_values[my_index] = filtered_output
     my_sum = my_sum + list_of_values[my_index]
@@ -91,7 +101,11 @@ while True:
 
     m_filtered_output = avg - filtered_output
 
-    heart_data.append(float(m_filtered_output))
+    # Butterworth filter
+    result = lowPassButterworthFilter(float(m_filtered_output))
+
+    heart_data.append(float(result))
+    #heart_data.append(float(m_filtered_output))
 
     curve1.setData(heart_data)
 

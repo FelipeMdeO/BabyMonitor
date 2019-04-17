@@ -18,7 +18,7 @@
 #define MAX30100_LED_CONF                 0x09
 
 /* Fifo registers */
-#define MAX30100_FIFO_WRITE_POINTER               0x02					/*!<  FIFO Write Pointer        ( Read/Write ) ( Default 0x00 ) */
+#define MAX30100_FIFO_WRITE_POINTER       0x02					/*!<  FIFO Write Pointer        ( Read/Write ) ( Default 0x00 ) */
 #define MAX30100_FIFO_OVERFLOW_COUNTER    0x03					/*!<  Over Flow Counter         ( Read/Write ) ( Default 0x00 ) */
 #define MAX30100_FIFO_READ                0x04					/*!<  FIFO Read Pointer         ( Read/Write ) ( Default 0x00 ) */
 #define MAX30100_FIFO_DATA                0x05					/*!<  FIFO Data Register        ( Read/Write ) ( Default 0x00 ) */
