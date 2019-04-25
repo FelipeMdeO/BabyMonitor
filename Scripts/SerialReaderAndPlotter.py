@@ -2,8 +2,8 @@ import serial
 from pyqtgraph.Qt import QtGui, QtCore
 from numpy import *
 import pyqtgraph as pg
-from pyqtgraph.ptime import time
 import time
+import ctypes, os
 
 app = QtGui.QApplication([])
 
@@ -15,20 +15,10 @@ win.setWindowTitle("Heart rate Tester")
 pg.setConfigOptions(antialias=True)
 
 p1 = win.addPlot(title="Max30100 data")
-# p1.enableAutoRange('xy', True)
-# p1.setAutoPan(y=True)
-
-# p1.setConfigOption('background', 'w')
 
 win.nextRow()  # with need other plot in same window
 
-# p2 = win.addPlot(title="Max value")
-# p2.enableAutoRange('xy', True)
-# p2.setAutoPan(y=True)
-
-
 heart_data = []
-# max_pulse = []
 
 # Filter parameters
 w = 0
@@ -53,16 +43,14 @@ curve1 = p1.plot(pen='y', fillLevel=-0.3, brush=(255, 0, 0, 200))
 p1.setLabel('left', "Heart Rate", units=' ')
 p1.setYRange(-400, 800, padding=0)
 
-# curve2 = p2.plot(pen=None, symbol='t', symbolPen=None, symbolSize=10, symbolBrush=(100, 100, 255, 50))
-# p2.setLabel('left', "Max value", units=' ')
-# p2.setYRange(-400, 800, padding=0)
-
 ser = serial.Serial('COM7', 115200, timeout=1)  # Configure about you need
 
 readOut = 0
 
+
 def updatePlot(heart_data):
     p1.setXRange(len(heart_data)-200, len(heart_data), padding=0)
+
 
 
 def dcRemoval(x, prev_w, alpha):
@@ -83,22 +71,35 @@ def lowPassButterworthFilter(sample):
     return bt_filtered[0] + bt_filtered[1]
 
 
+def millis():
+    """ return a timestamp in milliseconds (ms)"""
+    tics = ctypes.c_int64()  # use *signed* 64-bit variables; see the "QuadPart" variable here: https://msdn.microsoft.com/en-us/library/windows/desktop/aa383713(v=vs.85).aspx
+    freq = ctypes.c_int64()
+
+    # get ticks on the internal ~2MHz QPC clock
+    ctypes.windll.Kernel32.QueryPerformanceCounter(ctypes.byref(tics))
+    # get the actual freq. of the internal ~2MHz QPC clock
+    ctypes.windll.Kernel32.QueryPerformanceFrequency(ctypes.byref(freq))
+
+    t_ms = tics.value * 1e3 / freq.value
+    return t_ms
+
+
 # max value detect
 last_sample = 0
 count_pulse_detect = 0
 max_value = 0
 curve_direction = "down"
-time_first_pulse = 0
-time_fifth_pulse = 0
-flag_first_pulse = 0
-number_of_pulses = 0
-n_pulses_to_count = 10
-min_pulse_threshold = 100
+min_pulse_threshold = 200
 is_reliable = 0
+file = open("output.txt", 'w')
+currentBeat = 0
+lastBeat = 0
+BPM_list = []
 
 while True:
     while ser.inWaiting() == 0:
-        pass # do nothing
+        pass  # do nothing
     readOut = ser.readline().decode('ascii')
     # print(readOut)
     readOut = readOut.rstrip()  # remocao do \n
@@ -126,13 +127,15 @@ while True:
     result = lowPassButterworthFilter(float(m_filtered_output))
 
     heart_data.append(float(result))
-    # heart_data.append(float(m_filtered_output))
+
+    # write data in file to statical analyser
+    file.write(str(result) + " " + str(time.perf_counter()) + '\n')
 
     curve1.setData(heart_data)
     actual_sample = result
     count_pulse_detect = count_pulse_detect + 1
     if count_pulse_detect > 100:
-        print("Max count pulse detect found")
+        # print("Max count pulse detect found")
         count_pulse_detect = 0
         max_value = 0
         last_sample = 0
@@ -146,33 +149,27 @@ while True:
         if actual_sample > last_sample:
             max_value = actual_sample
             curve_direction = "up"
+            currentBeat = millis()
         else:
             if curve_direction == "up":
-                # print("max_value = {}".format(max_value))
-                # max_pulse.append(float(max_value))
                 number_of_pulses = number_of_pulses + 1
-                # curve2.setData(max_pulse)
-                # p2.plot(max_pulse, pen=(0, 0, 255))
                 count_pulse_detect = 0
                 max_value = 0
-                last_sample = 0
-                actual_sample = 0
                 curve_direction = "down"
-    if number_of_pulses == 1:  # when I find first pulse save the time for it
-        time_first_pulse = time.perf_counter()
-        flag_first_pulse = 1
-    if flag_first_pulse and number_of_pulses == n_pulses_to_count+1:  # when I find the pulse of number 5 save time for it
-        time_fifth_pulse = time.perf_counter()
-        dif_time = time_fifth_pulse - time_first_pulse  # verify diff time
-        if is_reliable:
-            print("BPM = {}".format(60 * n_pulses_to_count//dif_time))  # if 5 bp in dif time, how much bp in 60 seconds ? result = 5*60/diff
-        else:
-            is_reliable = 1
-        flag_first_pulse = 0
-        time_first_pulse = 0
-        time_fifth_pulse = 0
-        number_of_pulses = 0
-
+                # print("Peak reached: ")
+                # print("ac_v {} las_v {}".format(actual_sample, last_sample))
+                beatDuration = currentBeat - lastBeat
+                lastBeat = currentBeat
+                if beatDuration > 0:
+                    BPM = 60000/beatDuration
+                    if 40 < BPM < 250:
+                        BPM_list.append(BPM)
+                        # print("BPM = {}".format(BPM))
+                    if len(BPM_list) >= 5:
+                        BPM_avg = sum(BPM_list) // len(BPM_list)
+                        if std(BPM_list) < 5:
+                            print("BPM_AVG = {}".format(BPM_avg))
+                        BPM_list.clear()
     last_sample = result
     app.processEvents()
     updatePlot(heart_data)
