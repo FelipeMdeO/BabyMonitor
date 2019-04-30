@@ -36,7 +36,9 @@
 #define DEFAULT_IR_LED_CURRENT            MAX30100_LED_CURRENT_50MA
 #define STARTING_RED_LED_CURRENT          MAX30100_LED_CURRENT_27_1MA
 
-#define STARTING_RED_LED_CURRENT          MAX30100_LED_CURRENT_27_1MA
+/* Adjust RED LED current balancing*/
+#define MAGIC_ACCEPTABLE_INTENSITY_DIFF         2000
+#define RED_LED_CURRENT_ADJUSTMENT_MS           500 /*	TODO	Use this value in loop of lptmrCounter2		*/
 
 typedef enum Mode {
     MAX30100_MODE_HR_ONLY                 = 0x02,
@@ -68,5 +70,6 @@ typedef enum LEDPulseWidth {
     MAX30100_PULSE_WIDTH_800US_ADC_15     = 0x02,
     MAX30100_PULSE_WIDTH_1600US_ADC_16    = 0x03,
 } LEDPulseWidth;
+
 
 #endif /* MAX30100_MAX30100_H_ */

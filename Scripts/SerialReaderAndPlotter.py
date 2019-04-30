@@ -1,3 +1,5 @@
+from os import read
+
 import serial
 from pyqtgraph.Qt import QtGui, QtCore
 from numpy import *
@@ -18,13 +20,19 @@ p1 = win.addPlot(title="Max30100 data")
 
 win.nextRow()  # with need other plot in same window
 
+p2 = win.addPlot(title="RED value")
+p2.enableAutoRange('xy', True)
+p2.setAutoPan(y=True)
+
 heart_data = []
+red_data = []
 
 # Filter parameters
 w = 0
-global PREV_W
-PREV_W = 0
 ALPHA = 0.95
+# PREV_W and PREV_W_RED are global variables
+PREV_W = 0
+PREV_W_RED = 0
 
 # Mean filter parameters
 MEAN_FILTER_SIZE = 15
@@ -43,6 +51,10 @@ curve1 = p1.plot(pen='y', fillLevel=-0.3, brush=(255, 0, 0, 200))
 p1.setLabel('left', "Heart Rate", units=' ')
 p1.setYRange(-400, 800, padding=0)
 
+curve2 = p2.plot(pen='b')
+p2.setLabel('left', "RED Data", units=' ')
+p2.setYRange(-500, 500, padding=0)
+
 ser = serial.Serial('COM7', 115200, timeout=1)  # Configure about you need
 
 readOut = 0
@@ -54,11 +66,31 @@ def updatePlot(heart_data):
 
 
 def dcRemoval(x, prev_w, alpha):
+    """
+
+    :param x: sensor last value read
+    :param prev_w: last value read
+    :param alpha: is the response constant of the filter
+    :return: filtered value
+    """
     filtered_w = x + alpha * prev_w
-    result = filtered_w - prev_w
+    result1 = filtered_w - prev_w
     global PREV_W
     PREV_W = filtered_w
-    return result
+    return result1
+
+def dcRemovalRedLed(x, prev_w, alpha):
+    """
+    :param x: sensor last value read
+    :param prev_w: last value read
+    :param alpha: is the response constant of the filter
+    :return: filtered value
+    """
+    filtered_w = x + alpha * prev_w
+    result2 = filtered_w - prev_w
+    global PREV_W_RED
+    PREV_W_RED = filtered_w
+    return result2
 
 
 list_of_values = zeros(MEAN_FILTER_SIZE)  # list of data to mean median filter
@@ -96,6 +128,20 @@ file = open("output.txt", 'w')
 currentBeat = 0
 lastBeat = 0
 BPM_list = []
+number_of_pulses = 0
+
+beatDetected = False
+SPO2_Flag = False
+beatsDetectedNum = 0
+CALCULATE_EVERY_N_BEATS = 5
+irACValueSqSum = 0
+redACValueSqSum = 0
+samplesRecorded = 0
+SPO2_list = []
+
+spO2LUT = [100, 100, 100, 100, 99, 99, 99, 99, 99, 99, 98, 98, 98, 98,
+           98, 97, 97, 97, 97, 97, 97, 96, 96, 96, 96, 96, 96, 95, 95,
+           95, 95, 95, 95, 94, 94, 94, 94, 94, 93, 93, 93, 93, 93]
 
 while True:
     while ser.inWaiting() == 0:
@@ -103,10 +149,25 @@ while True:
     readOut = ser.readline().decode('ascii')
     # print(readOut)
     readOut = readOut.rstrip()  # remocao do \n
+
+    # Temporary change
+    splited_data = readOut.split("\t")
+    # print(readOut)
+    readOut = splited_data[0]
+    readOutRed = splited_data[1]
+
     readOut = float.fromhex(readOut)
+    readOutRed = float.fromhex(readOutRed)
 
     # DC Removal filter
     filtered_output = dcRemoval(readOut, prev_w=PREV_W, alpha=ALPHA)
+    filtered_output_red = dcRemovalRedLed(readOutRed, prev_w=PREV_W_RED, alpha=ALPHA)
+
+    irACValue = filtered_output
+    redACValue = filtered_output_red
+
+    red_data.append(float(filtered_output_red))
+    # print("IR = {}  Red = {}".format(filtered_output, filtered_output_red))
 
     # Mean Median Filter
     my_sum = my_sum - list_of_values[my_index]
@@ -131,7 +192,11 @@ while True:
     # write data in file to statical analyser
     file.write(str(result) + " " + str(time.perf_counter()) + '\n')
 
+    # print("IR = {}  Red = {}".format(filtered_output, filtered_output_red))
+
     curve1.setData(heart_data)
+    curve2.setData(red_data)
+
     actual_sample = result
     count_pulse_detect = count_pulse_detect + 1
     if count_pulse_detect > 100:
@@ -143,7 +208,6 @@ while True:
         flag_first_pulse = 0
         time_first_pulse = 0
         time_fifth_pulse = 0
-        number_of_pulses = 0
     elif actual_sample > min_pulse_threshold:
         # print("actual sample = {} and last_sample = {}".format(actual_sample, last_sample))
         if actual_sample > last_sample:
@@ -152,7 +216,6 @@ while True:
             currentBeat = millis()
         else:
             if curve_direction == "up":
-                number_of_pulses = number_of_pulses + 1
                 count_pulse_detect = 0
                 max_value = 0
                 curve_direction = "down"
@@ -160,16 +223,43 @@ while True:
                 # print("ac_v {} las_v {}".format(actual_sample, last_sample))
                 beatDuration = currentBeat - lastBeat
                 lastBeat = currentBeat
+                beatDetected = True
                 if beatDuration > 0:
                     BPM = 60000/beatDuration
                     if 40 < BPM < 250:
                         BPM_list.append(BPM)
                         # print("BPM = {}".format(BPM))
                     if len(BPM_list) >= 5:
-                        BPM_avg = sum(BPM_list) // len(BPM_list)
                         if std(BPM_list) < 5:
+                            BPM_avg = sum(BPM_list) // len(BPM_list)
                             print("BPM_AVG = {}".format(BPM_avg))
+                            SPO2_Flag = True
                         BPM_list.clear()
+
+    samplesRecorded = samplesRecorded + 1
+    irACValueSqSum = irACValueSqSum + irACValue*irACValue
+    redACValueSqSum = redACValueSqSum + redACValue*redACValue
+    if beatDetected:
+        beatsDetectedNum = beatsDetectedNum + 1
+        if beatsDetectedNum == CALCULATE_EVERY_N_BEATS:
+            acSqRatio = 100 * log(redACValueSqSum/samplesRecorded)/log(irACValueSqSum/samplesRecorded)
+            if SPO2_Flag:
+                if acSqRatio > 66:
+                    indice = int(acSqRatio - 66)  # variavel em portugues pra evitar sobreescrever variavel nativa do python
+                    # print("index = {}".format(indice))
+                spo2 = spO2LUT[indice]
+                SPO2_list.append(spo2)
+                if len(SPO2_list) >= 5:
+                    if std(SPO2_list) < 2:
+                        SPO2_avg = sum(SPO2_list) // len(SPO2_list)
+                        print("SPO2 = {}".format(SPO2_avg))
+                    SPO2_list.clear()
+            samplesRecorded = 0
+            irACValueSqSum = 0
+            redACValueSqSum = 0
+            beatsDetectedNum = 0
+            beatDetected = False
+
     last_sample = result
     app.processEvents()
     updatePlot(heart_data)

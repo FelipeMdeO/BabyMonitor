@@ -94,6 +94,8 @@ static bool I2C_WriteReg(uint8_t device_addr, uint8_t reg_addr, uint8_t value);
 static bool I2C_ReadRegs(uint8_t device_addr, uint8_t reg_addr, uint8_t *rxBuff, uint32_t rxSize);
 static void MAX30100_ClearFIFO(void);
 static void USART_Printf(const char* string);
+static void setLEDCurrents(uint8_t redLedCurrent, uint8_t IRLedCurrent);
+static void balanceIntesities(float redLedDC, float IRLedDC);
 
 /*								USART user Signal Event 												*/
 void USART_SignalEvent_t(uint32_t event);
@@ -104,12 +106,20 @@ void USART_SignalEvent_t(uint32_t event);
 
 volatile bool completionFlag = false;
 volatile bool nakFlag = false;
+static LEDCurrent redLedCurrent = STARTING_RED_LED_CURRENT;
+/* TODO pass IRLedCurrent to static variable too */
+static bool canAdjustRedCurrent = false;
 
 /*								USART Variables 														*/
 uint8_t g_txBuffer[ECHO_BUFFER_LENGTH] = { 0 }; 	/*	Data buffer 1 byte								*/
 volatile bool txOnGoing = false; 					/*	Variable to identify if data finished transfer	*/
 
+/*		LPTMR Variables		*/
+uint32_t currentCounter = 0U;
+lptmr_config_t lptmrConfig;
+
 volatile uint32_t lptmrCounter = 0U;
+volatile uint32_t lptmrCounter2 = 0U;
 
 /*******************************************************************************
  * Code
@@ -118,7 +128,8 @@ volatile uint32_t lptmrCounter = 0U;
 void LPTMR_LED_HANDLER(void)
 {
     LPTMR_ClearStatusFlags(DEMO_LPTMR_BASE, kLPTMR_TimerCompareFlag);
-    lptmrCounter++;
+    lptmrCounter++;		/*	Counter to timer of read fifo	*/
+    lptmrCounter2++;	/*	Counter to timer of led current adjustment */
     /*
      * Workaround for TWR-KV58: because write buffer is enabled, adding
      * memory barrier instructions to make sure clearing interrupt flag completed
@@ -316,6 +327,54 @@ static void Set_mode(uint8_t mode)
 
 }
 
+static void balanceIntesities(float redLedDC, float IRLedDC)
+{
+	/*
+	 * @brief  balanceIntesities
+	 * @details   Function to adjust value of intensity of red led
+	 * @param[in] float redLedDC, float IRLedDC
+	 * @param[out] float redLedDC, float IRLedDC updated
+	 * @return void
+	 *
+	 * author dell-felipe
+	 * date 25 de abr de 2019
+	 *
+	 */
+	if (canAdjustRedCurrent)
+	{
+		if (redLedCurrent == MAX30100_LED_CURRENT_50MA)
+		{
+#ifdef MAX30100_DEBUG
+			PRINTF("Red Led Current 50 MA\r\n");
+#endif
+		}
+		else if (redLedCurrent == MAX30100_LED_CURRENT_0MA)
+		{
+#ifdef MAX30100_DEBUG
+			PRINTF("Red Led 0 MA\r\n");
+#endif
+		}
+
+		if (IRLedDC - redLedDC > MAGIC_ACCEPTABLE_INTENSITY_DIFF && redLedCurrent < MAX30100_LED_CURRENT_50MA)
+		{
+			redLedCurrent++;
+			setLEDCurrents(redLedCurrent, DEFAULT_IR_LED_CURRENT);
+#ifdef MAX30100_DEBUG
+			PRINTF("Red Led Current +\r\n");
+#endif
+		}
+		else if(redLedDC - IRLedDC > MAGIC_ACCEPTABLE_INTENSITY_DIFF && redLedCurrent > 0)
+		{
+			redLedCurrent--;
+			setLEDCurrents(redLedCurrent, DEFAULT_IR_LED_CURRENT);
+		}
+#ifdef MAX30100_DEBUG
+			PRINTF("Red Led Current -\r\n");
+#endif
+			canAdjustRedCurrent = false;
+	}
+}
+
 static void setLEDCurrents( uint8_t redLedCurrent, uint8_t IRLedCurrent )
 {
 	/*
@@ -385,9 +444,11 @@ static void MAX30100_Init(void)
 	 */
 
 
-	Set_mode(MAX30100_MODE_HR_ONLY);
-	/* DEFAULT_IR_LED_CURRENT = MAX30100_LED_CURRENT_50MA*/
-	setLEDCurrents(MAX30100_LED_CURRENT_0MA, DEFAULT_IR_LED_CURRENT);
+	Set_mode(MAX30100_MODE_SPO2_HR);
+
+	/* DEFAULT_IR_LED_CURRENT = */
+	setLEDCurrents(MAX30100_LED_CURRENT_50MA, MAX30100_LED_CURRENT_50MA);
+	//setLEDCurrents(MAX30100_LED_CURRENT_50MA, MAX30100_LED_CURRENT_50MA); /* TODO remember change here*/
 	setLEDPulseWidth(DEFAULT_LED_PULSE_WIDTH);
 }
 
@@ -551,8 +612,22 @@ static void MAX30100_ClearFIFO(void) {
 
 static void readFIFO()
 {
+	/*	TODO Change this function to receive 2 pointers and write leds values of it		*/
+	/*
+	 * @brief  readFIFO
+	 * @details     Function to read data of sensor
+	 * @param[in]
+	 * @param[out]
+	 * @return void
+	 *
+	 * author dell-felipe
+	 * date 25 de abr de 2019
+	 *
+	 */
+
 	uint8_t  buffer[4 * 16] = { 0 };
-	uint16_t output = 0;
+	uint16_t rawIR = 0;
+	uint16_t rawRed = 0;
 	uint8_t readBuff[3] = { 0 };
 	char value[50] = { 0 };
 
@@ -588,21 +663,28 @@ static void readFIFO()
 		sprintf(value, "Number of samples = %d\r\n", numberOfSamples);
 		USART_Printf(value);
 #endif
+		//numberOfSamples = 1; /* TODO voltar a função para funcionamento a partir do numero de amostras disponiveis */
 		I2C_ReadRegs(MAX30100_DEVICE, MAX30100_FIFO_DATA, buffer, numberOfSamples*4);
 		for (uint8_t i = 0; i < numberOfSamples; ++i)
 		{
-			output = (buffer[i*4] << 8) | buffer[1 + i * 4];
+			/*		*/
+			rawIR = (buffer[i * 4] << 8) | buffer[1 + i * 4];
+			rawRed = (buffer[2 + i * 4] << 8) | buffer[3 + i * 4];;
+
+
 #ifdef MAX30100_DEBUG
-			sprintf(value, " S[%d] = %04x\r\n", i, output); /* Todo return to 4 bytes when use 2 leds*/
+			sprintf(value, " S[%d] = %04x\r\n", i, rawIR);
 #else
-			sprintf(value, "%04x\r\n", output);
+			sprintf(value, "%04x\t%04x\r\n", rawIR, rawRed);
 			USART_Printf(value);
 #endif
+			break;
 		}
 	}
 
 #ifdef MAX30100_DEBUG
-	PRINTF("IR output = 0x%x\r\n", output);
+	PRINTF("IR output = 0x%x\r\n", rawIR);
+	PRINTF("Red output = 0x%x\r\n", rawRed);
 #endif
 
 }
@@ -633,9 +715,6 @@ int main(void)
     APP_USART.PowerControl(ARM_POWER_FULL);
     APP_USART.Control(ARM_USART_MODE_ASYNCHRONOUS, BOARD_DEBUG_UART_BAUDRATE);
 
-    /*		LPTMR Variables		*/
-    uint32_t currentCounter = 0U;
-    lptmr_config_t lptmrConfig;
 
     /* Configure LPTMR */
     /*
@@ -682,28 +761,32 @@ int main(void)
 
     MAX30100_Init();
 
-    //MAX30100_ClearFIFO();
-    //MAX30100_readFIFO(false);
-    //readFIFO();
-
 #ifdef MAX30100_DEBUG
     PRINTF("\r\nEnd of I2C MAX30100 test .\r\n");
 #endif
     for(;;)
     {
-    	if (currentCounter != lptmrCounter)
+    	/*	TODO Verify if lptmrCounter and lptmrCounter2 can be short type	*/
+    	if (currentCounter != lptmrCounter)	/* lptmrCounter change when 10 ms pass */
     	{
     		currentCounter = lptmrCounter;
     		readFIFO();
-    		//MAX30100_readFIFO(0);
-    		if (lptmrCounter > 99) {
+
+    		if (lptmrCounter > 99)
+    		{
     			lptmrCounter = 0;
-    			 //USART_Printf("100 reads\r\n");
-    			 LED_TOGGLE();
+    			LED_TOGGLE();
 			}
+    		/*	Adjust Red Led current balancing with 500 ms (10 ms * 50 = 500 ms)	*/
+    		if (lptmrCounter2 > 49)
+    		{
+    			lptmrCounter2 = 0;
+    			canAdjustRedCurrent = true;
+    			/*	Implement refresh led adjustment	*/
+
+    		}
     	}
-    	//readFIFO();
-    	//MAX30100_readFIFO(0);
+
 #ifdef MAX30100_DEBUG
     	//PRINTF("---------------------------------------------\r\n");
 #endif
