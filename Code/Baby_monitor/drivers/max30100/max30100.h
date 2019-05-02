@@ -30,6 +30,7 @@
  * You can't just throw these two values at random. Check Check table 8 in datasheet on page 19.
  * 100hz + 1600us is max for that resolution
  */
+#define MAX30100_SPO2_HI_RES_EN           (1 << 6)
 #define DEFAULT_SAMPLING_RATE             MAX30100_SAMPLING_RATE_100HZ
 #define DEFAULT_LED_PULSE_WIDTH           MAX30100_PULSE_WIDTH_1600US_ADC_16
 
@@ -70,6 +71,18 @@ typedef enum LEDPulseWidth {
     MAX30100_PULSE_WIDTH_800US_ADC_15     = 0x02,
     MAX30100_PULSE_WIDTH_1600US_ADC_16    = 0x03,
 } LEDPulseWidth;
+
+typedef enum SamplingRate {
+    MAX30100_SAMPLING_RATE_50HZ           = 0x00,
+    MAX30100_SAMPLING_RATE_100HZ          = 0x01,
+    MAX30100_SAMPLING_RATE_167HZ          = 0x02,
+    MAX30100_SAMPLING_RATE_200HZ          = 0x03,
+    MAX30100_SAMPLING_RATE_400HZ          = 0x04,
+    MAX30100_SAMPLING_RATE_600HZ          = 0x05,
+    MAX30100_SAMPLING_RATE_800HZ          = 0x06,
+    MAX30100_SAMPLING_RATE_1000HZ         = 0x07
+} SamplingRate;
+
 
 
 #endif /* MAX30100_MAX30100_H_ */

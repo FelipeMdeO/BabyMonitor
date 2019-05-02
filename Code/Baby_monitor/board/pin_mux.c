@@ -71,27 +71,30 @@ BOARD_InitPins:
  * END ****************************************************************************************************************/
 void BOARD_InitPins(void)
 {
-    /* Port B Clock Gate Control: Clock enabled */
-    CLOCK_EnableClock(kCLOCK_PortB);
+	/* Port B Clock Gate Control: Clock enabled */
+	CLOCK_EnableClock(kCLOCK_PortB);
 
-    /* PORTB1 (pin 17) is configured as UART0_TX */
-    PORT_SetPinMux(PORTB, 1U, kPORT_MuxAlt2);
+	/* PORTB1 (pin 17) is configured as UART0_TX */
+	PORT_SetPinMux(PORTB, 1U, kPORT_MuxAlt2);
 
-    /* PORTB2 (pin 18) is configured as UART0_RX */
-    PORT_SetPinMux(PORTB, 2U, kPORT_MuxAlt2);
+	/* PORTB2 (pin 18) is configured as UART0_RX */
+	PORT_SetPinMux(PORTB, 2U, kPORT_MuxAlt2);
 
-    /* PORTB6 (pin 1) is configured as PTB6 */
-    PORT_SetPinMux(PORTB, 6U, kPORT_MuxAsGpio);
+	/* PORTB6 (pin 1) is configured as PTB6 */
+	PORT_SetPinMux(PORTB, 6U, kPORT_MuxAsGpio);
 
-    SIM->SOPT5 = ((SIM->SOPT5 &
-                   /* Mask bits to zero which are setting */
-                   (~(SIM_SOPT5_UART0TXSRC_MASK | SIM_SOPT5_UART0RXSRC_MASK)))
+	/* PORTB8 (pin X) is configured as PTB8 */
+	PORT_SetPinMux(PORTB, 8U, kPORT_MuxAsGpio);
 
-                  /* UART0 transmit data source select: UART0_TX pin. */
-                  | SIM_SOPT5_UART0TXSRC(SOPT5_UART0TXSRC_UART_TX)
+	SIM->SOPT5 = ((SIM->SOPT5 &
+			/* Mask bits to zero which are setting */
+			(~(SIM_SOPT5_UART0TXSRC_MASK | SIM_SOPT5_UART0RXSRC_MASK)))
 
-                  /* UART0 receive data source select: UART0_RX pin. */
-                  | SIM_SOPT5_UART0RXSRC(SOPT5_UART0RXSRC_UART_RX));
+			/* UART0 transmit data source select: UART0_TX pin. */
+			| SIM_SOPT5_UART0TXSRC(SOPT5_UART0TXSRC_UART_TX)
+
+			/* UART0 receive data source select: UART0_RX pin. */
+			| SIM_SOPT5_UART0RXSRC(SOPT5_UART0RXSRC_UART_RX));
 }
 
 /* clang-format off */
@@ -114,30 +117,30 @@ I2C0_InitPins:
  * END ****************************************************************************************************************/
 void I2C0_InitPins(void)
 {
-    /* Port B Clock Gate Control: Clock enabled */
-    CLOCK_EnableClock(kCLOCK_PortB);
+	/* Port B Clock Gate Control: Clock enabled */
+	CLOCK_EnableClock(kCLOCK_PortB);
 
-    const port_pin_config_t portb3_pin23_config = {/* Internal pull-up resistor is enabled */
-                                                   kPORT_PullUp,
-                                                   /* Passive filter is disabled */
-                                                   kPORT_PassiveFilterDisable,
-                                                   /* Low drive strength is configured */
-                                                   kPORT_LowDriveStrength,
-                                                   /* Pin is configured as I2C0_SCL */
-                                                   kPORT_MuxAlt2};
-    /* PORTB3 (pin 23) is configured as I2C0_SCL */
-    PORT_SetPinConfig(PORTB, 3U, &portb3_pin23_config);
+	const port_pin_config_t portb3_pin23_config = {/* Internal pull-up resistor is enabled */
+			kPORT_PullUp,
+			/* Passive filter is disabled */
+			kPORT_PassiveFilterDisable,
+			/* Low drive strength is configured */
+			kPORT_LowDriveStrength,
+			/* Pin is configured as I2C0_SCL */
+			kPORT_MuxAlt2};
+	/* PORTB3 (pin 23) is configured as I2C0_SCL */
+	PORT_SetPinConfig(PORTB, 3U, &portb3_pin23_config);
 
-    const port_pin_config_t portb4_pin24_config = {/* Internal pull-up resistor is enabled */
-                                                   kPORT_PullUp,
-                                                   /* Passive filter is disabled */
-                                                   kPORT_PassiveFilterDisable,
-                                                   /* Low drive strength is configured */
-                                                   kPORT_LowDriveStrength,
-                                                   /* Pin is configured as I2C0_SDA */
-                                                   kPORT_MuxAlt2};
-    /* PORTB4 (pin 24) is configured as I2C0_SDA */
-    PORT_SetPinConfig(PORTB, 4U, &portb4_pin24_config);
+	const port_pin_config_t portb4_pin24_config = {/* Internal pull-up resistor is enabled */
+			kPORT_PullUp,
+			/* Passive filter is disabled */
+			kPORT_PassiveFilterDisable,
+			/* Low drive strength is configured */
+			kPORT_LowDriveStrength,
+			/* Pin is configured as I2C0_SDA */
+			kPORT_MuxAlt2};
+	/* PORTB4 (pin 24) is configured as I2C0_SDA */
+	PORT_SetPinConfig(PORTB, 4U, &portb4_pin24_config);
 }
 
 /* clang-format off */
@@ -160,14 +163,14 @@ I2C0_DeinitPins:
  * END ****************************************************************************************************************/
 void I2C0_DeinitPins(void)
 {
-    /* Port B Clock Gate Control: Clock enabled */
-    CLOCK_EnableClock(kCLOCK_PortB);
+	/* Port B Clock Gate Control: Clock enabled */
+	CLOCK_EnableClock(kCLOCK_PortB);
 
-    /* PORTB3 (pin 23) is disabled */
-    PORT_SetPinMux(PORTB, 3U, kPORT_PinDisabledOrAnalog);
+	/* PORTB3 (pin 23) is disabled */
+	PORT_SetPinMux(PORTB, 3U, kPORT_PinDisabledOrAnalog);
 
-    /* PORTB4 (pin 24) is disabled */
-    PORT_SetPinMux(PORTB, 4U, kPORT_PinDisabledOrAnalog);
+	/* PORTB4 (pin 24) is disabled */
+	PORT_SetPinMux(PORTB, 4U, kPORT_PinDisabledOrAnalog);
 }
 /* FUNCTION ************************************************************************************************************
  *
@@ -177,14 +180,14 @@ void I2C0_DeinitPins(void)
  * END ****************************************************************************************************************/
 void UART0_DeinitPins(void)
 {
-    /* Port B Clock Gate Control: Clock enabled */
-    CLOCK_EnableClock(kCLOCK_PortB);
+	/* Port B Clock Gate Control: Clock enabled */
+	CLOCK_EnableClock(kCLOCK_PortB);
 
-    /* PORTB1 (pin 17) is configured as CMP0_IN3 */
-    PORT_SetPinMux(PORTB, 1U, kPORT_PinDisabledOrAnalog);
+	/* PORTB1 (pin 17) is configured as CMP0_IN3 */
+	PORT_SetPinMux(PORTB, 1U, kPORT_PinDisabledOrAnalog);
 
-    /* PORTB2 (pin 18) is configured as ADC0_SE4 */
-    PORT_SetPinMux(PORTB, 2U, kPORT_PinDisabledOrAnalog);
+	/* PORTB2 (pin 18) is configured as ADC0_SE4 */
+	PORT_SetPinMux(PORTB, 2U, kPORT_PinDisabledOrAnalog);
 }
 
 /* clang-format on */
@@ -197,24 +200,24 @@ void UART0_DeinitPins(void)
  * END ****************************************************************************************************************/
 void UART0_InitPins(void)
 {
-    /* Port B Clock Gate Control: Clock enabled */
-    CLOCK_EnableClock(kCLOCK_PortB);
+	/* Port B Clock Gate Control: Clock enabled */
+	CLOCK_EnableClock(kCLOCK_PortB);
 
-    /* PORTB1 (pin 17) is configured as UART0_TX */
-    PORT_SetPinMux(PORTB, 1U, kPORT_MuxAlt2);
+	/* PORTB1 (pin 17) is configured as UART0_TX */
+	PORT_SetPinMux(PORTB, 1U, kPORT_MuxAlt2);
 
-    /* PORTB2 (pin 18) is configured as UART0_RX */
-    PORT_SetPinMux(PORTB, 2U, kPORT_MuxAlt2);
+	/* PORTB2 (pin 18) is configured as UART0_RX */
+	PORT_SetPinMux(PORTB, 2U, kPORT_MuxAlt2);
 
-    SIM->SOPT5 = ((SIM->SOPT5 &
-                   /* Mask bits to zero which are setting */
-                   (~(SIM_SOPT5_UART0TXSRC_MASK | SIM_SOPT5_UART0RXSRC_MASK)))
+	SIM->SOPT5 = ((SIM->SOPT5 &
+			/* Mask bits to zero which are setting */
+			(~(SIM_SOPT5_UART0TXSRC_MASK | SIM_SOPT5_UART0RXSRC_MASK)))
 
-                  /* UART0 transmit data source select: UART0_TX pin. */
-                  | SIM_SOPT5_UART0TXSRC(SOPT5_UART0TXSRC_UART_TX)
+			/* UART0 transmit data source select: UART0_TX pin. */
+			| SIM_SOPT5_UART0TXSRC(SOPT5_UART0TXSRC_UART_TX)
 
-                  /* UART0 receive data source select: UART0_RX pin. */
-                  | SIM_SOPT5_UART0RXSRC(SOPT5_UART0RXSRC_UART_RX));
+			/* UART0 receive data source select: UART0_RX pin. */
+			| SIM_SOPT5_UART0RXSRC(SOPT5_UART0RXSRC_UART_RX));
 }
 
 /* clang-format off */

@@ -1,11 +1,8 @@
-from os import read
-
 import serial
 from pyqtgraph.Qt import QtGui, QtCore
 from numpy import *
 import pyqtgraph as pg
-import time
-import ctypes, os
+import ctypes
 
 app = QtGui.QApplication([])
 
@@ -156,6 +153,8 @@ while True:
     readOut = splited_data[0]
     readOutRed = splited_data[1]
 
+    # print("IR = {}  Red = {}".format(readOut, readOutRed))
+
     readOut = float.fromhex(readOut)
     readOutRed = float.fromhex(readOutRed)
 
@@ -190,7 +189,7 @@ while True:
     heart_data.append(float(result))
 
     # write data in file to statical analyser
-    file.write(str(result) + " " + str(time.perf_counter()) + '\n')
+    #file.write(str(result) + " " + str(time.perf_counter()) + '\n')
 
     # print("IR = {}  Red = {}".format(filtered_output, filtered_output_red))
 

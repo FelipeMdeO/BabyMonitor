@@ -83,6 +83,15 @@
 #define BOARD_LED_BLUE_GPIO_PIN 10U
 #endif
 
+/*	Board IO pin	*/
+#ifndef BOARD_TOGGLE_GPIO
+#define BOARD_TOGGLE_GPIO GPIOB
+#endif
+#define BOARD_TOGGLE_PORT PORTB
+#ifndef BOARD_TOGGLE_PIN
+#define BOARD_TOGGLE_PIN 8U
+#endif
+
 #define LED_RED_INIT(output)                                                 \
     GPIO_PinWrite(BOARD_LED_RED_GPIO, BOARD_LED_RED_GPIO_PIN, output); \
     BOARD_LED_RED_GPIO->PDDR |= (1U << BOARD_LED_RED_GPIO_PIN) /*!< Enable target LED_RED */
@@ -92,6 +101,9 @@
     GPIO_PortSet(BOARD_LED_RED_GPIO, 1U << BOARD_LED_RED_GPIO_PIN) /*!< Turn off target LED_RED */
 #define LED_RED_TOGGLE() \
     GPIO_PortToggle(BOARD_LED_RED_GPIO, 1U << BOARD_LED_RED_GPIO_PIN) /*!< Toggle on target LED_RED */
+
+#define PTB8_TOGGLE() \
+	GPIO_PortToggle(BOARD_TOGGLE_GPIO, 1U << BOARD_TOGGLE_PIN) /*	Toggle PIN 8 of freedom */
 
 #define LED_GREEN_INIT(output)                                                   \
     GPIO_PinWrite(BOARD_LED_GREEN_GPIO, BOARD_LED_GREEN_GPIO_PIN, output); \
