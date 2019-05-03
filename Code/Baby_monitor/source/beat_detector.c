@@ -16,10 +16,12 @@
 
 #ifndef min
 #define min(a,b) \
-   ({ __typeof__ (a) _a = (a); \
-       __typeof__ (b) _b = (b); \
-     _a < _b ? _a : _b; })
+		({ __typeof__ (a) _a = (a); \
+		__typeof__ (b) _b = (b); \
+		_a < _b ? _a : _b; })
 #endif
+
+//#define MAX30100_BEAT_DETECTOR_OUTPUT
 
 struct dcFilter_t dcRemoval(float x, float prev_w, float alpha)
 {
@@ -79,51 +81,96 @@ void lowPassFilter(float x, struct butterworthFilter_t* filterResult)
 	filterResult->result = filterResult->v[0] + filterResult->v[1];
 }
 
-void initBeatDetector(struct beatDetector_t* beatDetectorStruct)
+void initBeatDetector(struct beatDetector_t* pt_beat_detector)
 {
-	beatDetectorStruct->state = BEATDETECTOR_STATE_INIT;
-	beatDetectorStruct->threshold = BEATDETECTOR_MIN_THRESHOLD;
-	beatDetectorStruct->beatPeriod = 0;
-	beatDetectorStruct->lastMaxValue = 0;
-	beatDetectorStruct->tsLastBeat = 0;
+	pt_beat_detector->state = BEATDETECTOR_STATE_INIT;
+	pt_beat_detector->threshold = BEATDETECTOR_MIN_THRESHOLD;
+	pt_beat_detector->lsSample = 0;
+	pt_beat_detector->beatPeriod = 0;
+	pt_beat_detector->lastMaxValue = 0;
+	pt_beat_detector->tsLastBeat = 0;
+	pt_beat_detector->count = 0;
 }
 
-unsigned short checkForBeat(float sample, struct beatDetector_t* beatDetectorStruct, volatile unsigned long millis)
+bool checkForBeat(float sample, struct beatDetector_t* pt_beat_detector)
 {
-	/*	TODO change millis to pointer to have updated values	*/
-	unsigned short beatDetected = false;
 
-	switch(beatDetectorStruct->state) {
+	switch(pt_beat_detector->state) {
+
 	case BEATDETECTOR_STATE_INIT:
-		if(millis >= BEATDETECTOR_INIT_HOLDOFF)
+		initBeatDetector(pt_beat_detector);
+		/*	Wait for startup sensor	*/
+		if (sample < 600 && sample > -400)
 		{
-			beatDetectorStruct->state = BEATDETECTOR_STATE_WAITING;
+			pt_beat_detector->count++;
+			if ( pt_beat_detector->count > 20)
+			{
+				pt_beat_detector->state = BEATDETECTOR_STATE_WAINTING_STABLE;
+#ifdef MAX30100_BEAT_DETECTOR_OUTPUT
+			char value[] = "State = BEATDETECTOR_STATE_WAINTING_STABLE";
+			USART_Printf(value);
+#endif
+			}
 		}
 		break;
+	case BEATDETECTOR_STATE_WAINTING_STABLE:
+		/*	TODO find method to garanty that the millis() will be clear before checkForBeat was called for first time	*/
+		if (millis() > BEATDETECTOR_INIT_HOLDOFF)
+		{
+			pt_beat_detector->state = BEATDETECTOR_STATE_WAITING_POSITIVE;
+			pt_beat_detector->lsSample = sample;
+#ifdef MAX30100_BEAT_DETECTOR_OUTPUT
+			char value[] = "State = BEATDETECTOR_STATE_WAITING_POSITIVE";
+			USART_Printf(value);
+#endif
+		}
+		break;
+	case BEATDETECTOR_STATE_WAITING_POSITIVE:
+		if (pt_beat_detector->lsSample < 0 && sample > 0)
+		{
+			pt_beat_detector->state = BEATDETECTOR_STATE_WAITING_NEGATIVE;
+			pt_beat_detector->tsLastBeat = millis();
+#ifdef MAX30100_BEAT_DETECTOR_OUTPUT
+			char value[] = "State = BEATDETECTOR_STATE_WAITING_NEGATIVE";
+			USART_Printf(value);
+#endif
+		}
+		pt_beat_detector->lsSample = sample;
+		break;
+	case BEATDETECTOR_STATE_WAITING_NEGATIVE:
+		if (pt_beat_detector->lsSample > 0 && sample < 0 )
+		{
+			if (millis() - pt_beat_detector->tsLastBeat > 100)	/*	10 samples * 10 ms per sample = 100 ms	*/
+			{
+				pt_beat_detector->state = BEATDETECTOR_STATE_DETECTED;
+#ifdef MAX30100_BEAT_DETECTOR_OUTPUT
+			char value[] = "State = BEATDETECTOR_STATE_DETECTED";
+			USART_Printf(value);
+#endif
+			}
+			else
+			{
+				pt_beat_detector->state = BEATDETECTOR_STATE_ERROR;
+#ifdef MAX30100_BEAT_DETECTOR_OUTPUT
+			char value[] = "State = BEATDETECTOR_STATE_ERROR";
+			USART_Printf(value);
+#endif
+			}
 
-	case BEATDETECTOR_STATE_WAITING:
-		if(sample > beatDetectorStruct->threshold)
-		{
-			beatDetectorStruct->threshold = min(sample, BEATDETECTOR_MAX_THRESHOLD);
-			beatDetectorStruct->state = BEATDETECTOR_STATE_FOLLOWING_SLOPE;
 		}
-		/*	Tracking lost, reseting	*/
-		if(millis - beatDetectorStruct->tsLastBeat > BEATDETECTOR_INVALID_READOUT_DELAY)
-		{
-			beatDetectorStruct->beatPeriod = 0;
-			beatDetectorStruct->lastMaxValue = 0;
-		}
-		/*	TODO implement function decreaseThreshold	*/
-		//	decreaseThreshould();
+		pt_beat_detector->lsSample = sample;
+		break;
+	case BEATDETECTOR_STATE_DETECTED:
+		initBeatDetector(pt_beat_detector);
+		pt_beat_detector->state = BEATDETECTOR_STATE_WAITING_POSITIVE;
+		return true;
+	case BEATDETECTOR_STATE_ERROR:
+		initBeatDetector(pt_beat_detector);
+		pt_beat_detector->state = BEATDETECTOR_STATE_WAITING_POSITIVE;
+		return false;
+	default:
+		return false;
 		break;
 	}
-	return 1;
 }
-
-
-
-
-
-
-
 

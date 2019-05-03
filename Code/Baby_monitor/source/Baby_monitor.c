@@ -54,6 +54,7 @@
 /* My Code includes */
 #include "max30100/max30100.h"
 #include "beat_detector.h"
+#include "init.h"
 
 /*******************************************************************************
  * Definitions
@@ -68,9 +69,9 @@
 #define I2C_RELEASE_SCL_PIN 3U
 #define I2C_RELEASE_BUS_COUNT 100U
 
-/*								USART Definitions 														*/
-#define APP_USART Driver_USART0
-#define ECHO_BUFFER_LENGTH 8
+///*								USART Definitions 														*/
+//#define APP_USART Driver_USART0
+//#define ECHO_BUFFER_LENGTH 8
 
 /*			LPTMR Definitions					*/
 #define DEMO_LPTMR_BASE LPTMR0
@@ -79,15 +80,15 @@
 /* Get source clock for LPTMR driver */
 #define LPTMR_SOURCE_CLOCK CLOCK_GetFreq(kCLOCK_LpoClk)
 /* Define LPTMR microseconds counts value */
-#define LPTMR_USEC_COUNT 1000U /* 1 ms */
+#define LPTMR_USEC_COUNT 10000U /* 10 ms */
 #define LED_INIT() LED_RED_INIT(LOGIC_LED_ON)
 #define LED_TOGGLE() LED_RED_TOGGLE()
 #define PIN_TOGGLE() PTB8_TOGGLE()
 
 /*		DEBUG Define	*/
 //#define MAX30100_DEBUG
-#define MAX30100_FIFO_RAW_OUTPUT
-//#define MAX30100_FILTERED_RAW_OUTPUT
+//#define MAX30100_FIFO_RAW_OUTPUT
+#define MAX30100_FILTERED_RAW_OUTPUT
 
 /*******************************************************************************
  * Prototypes
@@ -99,16 +100,14 @@ static bool I2C_ReadRegs(uint8_t device_addr, uint8_t reg_addr, uint8_t *rxBuff,
 static bool MAX30100_Get_Sample(uint16_t *IR_sample, uint16_t *Red_sample);
 static void MAX30100_Init(void);
 static void MAX30100_ClearFIFO(void);
-static void USART_Printf(const char* string);
+//static void USART_Printf(const char* string);
 static void setLEDCurrents(uint8_t redLedCurrent, uint8_t IRLedCurrent);
 static void setSamplingRate(uint8_t samplingRate);
 static void setHighresModeEnabled(bool enabled);
 static void balanceIntesities(float redLedDC, float IRLedDC);
-volatile unsigned long millis(void);
-void clearMillis(void);
 
 /*								USART user Signal Event 												*/
-void USART_SignalEvent_t(uint32_t event);
+//void USART_SignalEvent_t(uint32_t event);
 
 /*******************************************************************************
  * Variables
@@ -128,22 +127,28 @@ volatile bool txOnGoing = false; 					/*	Variable to identify if data finished t
 uint32_t currentCounter = 0U;
 lptmr_config_t lptmrConfig;
 
-volatile unsigned int lptmrCounter = 0;
-volatile unsigned int lptmrCounter2 = 0U;
+volatile uint32_t lptmrCounter = 0;
+volatile uint32_t lptmrCounter2 = 0U;
+//volatile uint32_t msTicks = 0;
 /*	variable to count time in milliseconds passed
-*	NOTE
-*	volatile unsigned long can assume 0 to 4,294,967,295
-*	maybe it can be reduced to unsigned int					*/
-volatile unsigned long millis_tick = 0;
+ *	NOTE
+ *	volatile unsigned long can assume 0 to 4,294,967,295
+ *	maybe it can be reduced to unsigned int					*/
+
 
 /*******************************************************************************
  * Code
  ******************************************************************************/
 
+void SysTick_Handler(void)  {                               /* SysTick interrupt Handler. */
+	msTicks++;                                                /* See startup file startup_LPC17xx.s for SysTick vector */
+}
+
+
 void LPTMR_LED_HANDLER(void)
 {
 	LPTMR_ClearStatusFlags(DEMO_LPTMR_BASE, kLPTMR_TimerCompareFlag);
-	millis_tick++;		/*	Counter to use in millis function	*/
+	//millis_tick++;		/*	Counter to use in millis function	*/
 	lptmrCounter++;		/*	Counter to timer of read fifo	*/
 	lptmrCounter2++;	/*	Counter to timer of led current adjustment */
 
@@ -151,53 +156,19 @@ void LPTMR_LED_HANDLER(void)
 	__ISB();
 }
 
-void clearMillis(void)
-{
-/*
- * @brief  clearMillis
- * @details     Function to clear variable that save time passed in milliseconds
- * @param[in] void
- * @param[out]
- * @return void
- *
- * author dell-felipe
- * date 2 de mai de 2019
- *
- */
-	millis_tick = 0;
-
-}
-
-volatile unsigned long millis(void)
-{
-	/*
-	 * @brief  millis
-	 * @details  function to return the time passed in milliseconds
-	 * @param[in] void
-	 * @param[out]
-	 * @return volatile unsigned long time passed in milliseconds
-	 *
-	 * author dell-felipe
-	 * date 2 de mai de 2019
-	 *
-	 */
-	return millis_tick;
-}
-
-
-uint32_t UART0_GetFreq(void)
-{
-	return CLOCK_GetFreq(kCLOCK_CoreSysClk);
-}
-
-void USART_SignalEvent_t(uint32_t event)
-{
-	if (ARM_USART_EVENT_SEND_COMPLETE == event)
-	{
-		txOnGoing = false;
-	}
-
-}
+//uint32_t UART0_GetFreq(void)
+//{
+//	return CLOCK_GetFreq(kCLOCK_CoreSysClk);
+//}
+//
+//void USART_SignalEvent_t(uint32_t event)
+//{
+//	if (ARM_USART_EVENT_SEND_COMPLETE == event)
+//	{
+//		txOnGoing = false;
+//	}
+//
+//}
 
 
 static void i2c_release_bus_delay(void)
@@ -722,21 +693,23 @@ static void readFIFO()
 
 }
 
-static void USART_Printf(const char* string)
-{
-	APP_USART.Send(string, strlen(string));
-	while (txOnGoing)
-	{
-
-	}
-
-	txOnGoing = 1;
-}
+//static void USART_Printf(const char* string)
+//{
+//	APP_USART.Send(string, strlen(string));
+//	while (txOnGoing)
+//	{
+//
+//	}
+//
+//	txOnGoing = 1;
+//}
 
 int main(void)
 
 {
 	/*	TODO remove it from here		*/
+	//init_tick();
+	SysTick_Config(SystemCoreClock / 1000);		/* Configure SysTick to generate an interrupt every millisecond
 	/* Define the init structure for the output toggle pin*/
 	gpio_pin_config_t led_config = {
 			kGPIO_DigitalOutput, 0,
@@ -848,21 +821,27 @@ int main(void)
 #endif
 
 		/*	TODO Verify if lptmrCounter and lptmrCounter2 can be short type	*/
-
-		if (lptmrCounter > 9) /*	> 9 ms	*/
+		if (currentCounter != lptmrCounter)	/* lptmrCounter change when 10 ms pass */
 		{
+			currentCounter = lptmrCounter;
 #ifdef MAX30100_FIFO_RAW_OUTPUT
 			readFIFO();
-			lptmrCounter = 0;
 #endif
+
+			if (lptmrCounter > 99)
+			{
+				lptmrCounter = 0;
+				LED_TOGGLE();
+			}
+			/*	Adjust Red Led current balancing with 500 ms (10 ms * 50 = 500 ms)	*/
+			if (lptmrCounter2 > 49)
+			{
+				lptmrCounter2 = 0;
+				canAdjustRedCurrent = true;
+				/*	Implement refresh led adjustment	*/
+
+			}
 		}
-		if (lptmrCounter2 > 999) /* 999 ms		*/
-		{
-			lptmrCounter2 = 0;
-			LED_TOGGLE();
-			//GPIO_PortToggle(GPIOB, 1u << 8U);
-		}
-		/*	Adjust Red Led current balancing with 500 ms (10 ms * 50 = 500 ms)	*/
 
 
 #ifdef MAX30100_DEBUG

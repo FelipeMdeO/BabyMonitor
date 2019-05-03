@@ -4,7 +4,7 @@ from numpy import *
 import pyqtgraph as pg
 import ctypes
 
-ser = serial.Serial('COM7', 115200, timeout=1)  # Configure about you need
+ser = serial.Serial('COM2', 115200, timeout=1)  # Configure about you need
 IrData = 0
 
 # plot config area
@@ -35,7 +35,7 @@ while True:
     IrData = ser.readline().decode('ascii')
     IrData = IrData.rstrip()
     IrData = (int(IrData)//1000)
-    #print(readOut)
+    #print(IrData)
     heart_data.append(IrData)
 
     curve1.setData(heart_data)

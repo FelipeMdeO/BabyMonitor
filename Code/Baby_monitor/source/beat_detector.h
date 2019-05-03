@@ -5,6 +5,9 @@
  *      Author: dell-felipe
  */
 
+#include <fsl_debug_console.h>
+#include "init.h"
+
 #ifndef BEAT_DETECTOR_H_
 #define BEAT_DETECTOR_H_
 
@@ -25,17 +28,19 @@
 
 typedef enum BeatDetectorState_ {
     BEATDETECTOR_STATE_INIT,
-    BEATDETECTOR_STATE_WAITING,
-    BEATDETECTOR_STATE_FOLLOWING_SLOPE,
-    BEATDETECTOR_STATE_MAYBE_DETECTED,
-    BEATDETECTOR_STATE_MASKING
+	BEATDETECTOR_STATE_WAINTING_STABLE,
+    BEATDETECTOR_STATE_WAITING_POSITIVE,
+	BEAT_DETECTOR_STATE_FOLLOWING_SLOPE,
+    BEATDETECTOR_STATE_WAITING_NEGATIVE,
+    BEATDETECTOR_STATE_DETECTED,
+    BEATDETECTOR_STATE_ERROR
 } BeatDetectorState_;
 
 //extern enum BeatDetectorState_ BeatDetectorState;
 
 struct fifo_t{
-	short unsigned int rawIR;
-	short unsigned int rawRed;
+	uint16_t rawIR;
+	uint16_t rawRed;
 };
 
 extern struct fifo_t result;
@@ -51,9 +56,9 @@ extern struct dcFilter_t dcFilterRed;
 struct meanDiffFilter_t
 {
 	float values[MEAN_FILTER_SIZE];
-	unsigned short int index;
+	uint8_t index;
 	float sum;
-	unsigned short int count;
+	uint8_t count;
 };
 
 extern struct meanDiffFilter_t meanDiffIR;
@@ -68,11 +73,13 @@ extern struct butterworthFilter_t filter;
 
 struct beatDetector_t
 {
-	unsigned short int state;
-	unsigned short int threshold;
+	uint8_t state;
+	float lsSample;
+	float threshold;
 	float beatPeriod;
 	float lastMaxValue;
-	unsigned int tsLastBeat;
+	uint32_t tsLastBeat;
+	uint8_t count;
 };
 
 extern struct beatDetector_t beat_detector_t;
@@ -83,8 +90,8 @@ void dcFilterClear(struct dcFilter_t* dcFilter_t_);
 float meanDiff(float M, struct meanDiffFilter_t* filterValues);
 void meanDiffFilterClear(struct meanDiffFilter_t* filterValues);
 void lowPassFilter(float x, struct butterworthFilter_t* filterResult);
-void initBeatDetector(struct beatDetector_t* beatDetectorStruct);
-unsigned short addSample(float sample);
-unsigned short checkForBeat(float sample, struct beatDetector_t* beatDetectorStruct, volatile unsigned long millis);
+void initBeatDetector(struct beatDetector_t* pt_beat_detector);
+bool addSample(float sample);
+bool checkForBeat(float sample, struct beatDetector_t* beatDetectorStruct);
 
 #endif /* BEAT_DETECTOR_H_ */
