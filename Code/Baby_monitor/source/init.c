@@ -45,7 +45,7 @@ uint32_t millis(void)
 
 void init_tick(void)
 {
-	//SysTick_Config(SystemCoreClock / 1000);
+	SysTick_Config(SystemCoreClock / 1000);
 }
 
 uint32_t UART0_GetFreq(void)

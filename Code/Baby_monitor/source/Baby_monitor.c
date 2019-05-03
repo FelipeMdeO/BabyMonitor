@@ -140,7 +140,7 @@ volatile uint32_t lptmrCounter2 = 0U;
  * Code
  ******************************************************************************/
 
-void SysTick_Handler(void)  {                               /* SysTick interrupt Handler. */
+void SysTick_Handler(void)  {                              	  /* SysTick interrupt Handler. */
 	msTicks++;                                                /* See startup file startup_LPC17xx.s for SysTick vector */
 }
 
@@ -708,8 +708,8 @@ int main(void)
 
 {
 	/*	TODO remove it from here		*/
-	//init_tick();
-	SysTick_Config(SystemCoreClock / 1000);		/* Configure SysTick to generate an interrupt every millisecond
+	init_tick();
+	//SysTick_Config(SystemCoreClock / 1000);		/* Configure SysTick to generate an interrupt every millisecond
 	/* Define the init structure for the output toggle pin*/
 	gpio_pin_config_t led_config = {
 			kGPIO_DigitalOutput, 0,
