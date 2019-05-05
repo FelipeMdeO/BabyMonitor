@@ -23,6 +23,13 @@
 
 //#define MAX30100_BEAT_DETECTOR_OUTPUT
 
+static uint32_t b_times[2] = { 0 };
+static uint8_t last_p_fill = 0;
+static bool isFullFill = false;
+static bool isNeedMoreData = false;
+static uint8_t min_index;
+static uint8_t max_index;
+
 struct dcFilter_t dcRemoval(float x, float prev_w, float alpha)
 {
 	struct dcFilter_t filtered;
@@ -98,7 +105,6 @@ bool checkForBeat(float sample, struct beatDetector_t* pt_beat_detector)
 	switch(pt_beat_detector->state) {
 
 	case BEATDETECTOR_STATE_INIT:
-		initBeatDetector(pt_beat_detector);
 		/*	Wait for startup sensor	*/
 		if (sample < 600 && sample > -400)
 		{
@@ -107,8 +113,8 @@ bool checkForBeat(float sample, struct beatDetector_t* pt_beat_detector)
 			{
 				pt_beat_detector->state = BEATDETECTOR_STATE_WAINTING_STABLE;
 #ifdef MAX30100_BEAT_DETECTOR_OUTPUT
-			char value[] = "State = BEATDETECTOR_STATE_WAINTING_STABLE";
-			USART_Printf(value);
+				char value[] = "State = BEATDETECTOR_STATE_WAINTING_STABLE";
+				USART_Printf(value);
 #endif
 			}
 		}
@@ -144,19 +150,18 @@ bool checkForBeat(float sample, struct beatDetector_t* pt_beat_detector)
 			{
 				pt_beat_detector->state = BEATDETECTOR_STATE_DETECTED;
 #ifdef MAX30100_BEAT_DETECTOR_OUTPUT
-			char value[] = "State = BEATDETECTOR_STATE_DETECTED";
-			USART_Printf(value);
+				char value[] = "State = BEATDETECTOR_STATE_DETECTED";
+				USART_Printf(value);
 #endif
 			}
 			else
 			{
 				pt_beat_detector->state = BEATDETECTOR_STATE_ERROR;
 #ifdef MAX30100_BEAT_DETECTOR_OUTPUT
-			char value[] = "State = BEATDETECTOR_STATE_ERROR";
-			USART_Printf(value);
+				char value[] = "State = BEATDETECTOR_STATE_ERROR";
+				USART_Printf(value);
 #endif
 			}
-
 		}
 		pt_beat_detector->lsSample = sample;
 		break;
@@ -172,5 +177,201 @@ bool checkForBeat(float sample, struct beatDetector_t* pt_beat_detector)
 		return false;
 		break;
 	}
+	return false;
 }
+
+void initSimpleBeatDetector(struct simpleBeatDetector_t* simple_beat_detector_struct)
+{
+	simple_beat_detector_struct->state = SIMPLE_BEATDETECTOR_INIT;
+	simple_beat_detector_struct->sample = 0;
+	simple_beat_detector_struct->count = 0;
+
+	b_times[0] = 0;
+	b_times[1] = 0;
+
+}
+
+bool checkForSimpleBeat(float sample, struct simpleBeatDetector_t* simple_beat_detector_struct, uint16_t* beat_result_p)
+{
+
+	uint16_t Bpm = 0;
+	uint32_t beat_duration = 0;
+
+#ifdef MAX30100_BEAT_DETECTOR_OUTPUT
+	char value[50] = { 0 };
+#endif
+
+	switch (simple_beat_detector_struct->state) {
+	case SIMPLE_BEAT_DETECTOR_WAITING_STABLE:
+		if (millis() > BEATDETECTOR_INVALID_READOUT_DELAY)
+			simple_beat_detector_struct->state = SIMPLE_BEATDETECTOR_INIT;
+		break;
+
+	case SIMPLE_BEATDETECTOR_INIT:
+		if (sample > 0 && simple_beat_detector_struct->sample < 0)
+		{
+			/*	Positive Zero Cross Detected	*/
+			simple_beat_detector_struct->state = SIMPLE_BEATDETECTOR_WAITING_MAX;
+#ifdef MAX30100_BEAT_DETECTOR_OUTPUT
+			char aux[] = "State = SIMPLE_BEATDETECTOR_WAITING_MAX\r\n";
+			USART_Printf(aux);
+#endif
+		}
+		simple_beat_detector_struct->sample = sample;
+		break;
+	case SIMPLE_BEATDETECTOR_WAITING_MAX:
+		if (sample > BEATDETECTOR_MAX_THRESHOLD && sample < simple_beat_detector_struct->sample)
+		{
+			b_times[simple_beat_detector_struct->count] = millis();
+			simple_beat_detector_struct->count++;
+			simple_beat_detector_struct->state = SIMPLE_BEATDETECTOR_INIT;
+			if (simple_beat_detector_struct->count >= 2)
+			{
+				simple_beat_detector_struct->state = SIMPLE_BEATDETECTOR_CALCULATION;
+#ifdef MAX30100_BEAT_DETECTOR_OUTPUT
+				char aux[] = "State = SIMPLE_BEATDETECTOR_CALCULATION\r\n";
+				USART_Printf(aux);
+#endif
+			}
+		}
+		simple_beat_detector_struct->sample = sample;
+		break;
+	case SIMPLE_BEATDETECTOR_CALCULATION:
+
+		beat_duration = b_times[1] - b_times[0];
+		Bpm = 60000/beat_duration;
+#ifdef MAX30100_BEAT_DETECTOR_OUTPUT
+		sprintf(value, "b_[0]=%d b_[1]=%d Bpm=%d\r\n", b_times[0], b_times[1], Bpm);
+		USART_Printf(value);
+#endif
+		initSimpleBeatDetector(simple_beat_detector_struct);
+
+		if (Bpm > 30 && Bpm < 280)
+		{
+			*beat_result_p = Bpm;
+			return true;
+		}
+
+		else
+			return false;
+		break;
+	default:
+		return false;
+		break;
+	}
+	return false;
+}
+
+bool bpmAvgCalculator(uint16_t bpm, uint16_t* bpm_vector, uint16_t* bpm_avg)
+{
+	/*
+	 * @brief  BpmAvgCalculator
+	 * @details     Function that receives last calculated bpm value and put it in circular fifo
+	 * with 5 positions, when all positions were be filled this function consider discard some data
+	 * and calculate bpm average
+	 * @param[in] uint16 bpm: last value of bpm calculated
+	 * @param[in] uint16 bpm_vector: vector with last bpm values
+	 * @param[out]
+	 * @return uint16_t bpm avg
+	 *
+	 * author dell-felipe
+	 * date 5 de mai de 2019
+	 *
+	 */
+
+	uint16_t minimum;
+	uint16_t maximum;
+	float sum = 0;
+	float avg = 0;
+	float variance = 0;
+	uint8_t i;
+	static uint8_t index_to_fill = 0;
+
+	/* Verify if all five positions was filled, if yes, reset last_p_fill	*/
+	if (last_p_fill > BPM_VECTOR_SIZE - 1 )
+	{
+		last_p_fill = 0;
+		isFullFill = true;
+	}
+
+	/*	insert new bpm in last_p_fill position if no more data is needed	*/
+	if (!isNeedMoreData)
+	{
+		bpm_vector[last_p_fill] = bpm;
+		last_p_fill++;
+	}
+
+	/*	if more data is needed insert it when is needed	*/
+	else
+	{
+		if (index_to_fill == 0)
+		{
+			bpm_vector[min_index] = bpm;
+			index_to_fill++;
+		}
+		if (index_to_fill >= 1)
+		{
+			bpm_vector[max_index] = bpm;
+			index_to_fill = 0;
+			isNeedMoreData = false;
+		}
+	}
+
+	if(isFullFill && !isNeedMoreData)
+	{
+		minimum = bpm_vector[0];
+		maximum = bpm_vector[0];
+		min_index = 0;
+		max_index = 0;
+
+		/*	calculate average of vector	*/
+		for (i = 0; i < BPM_VECTOR_SIZE; i++)
+		{
+			sum += bpm_vector[i];
+		}
+
+		avg = sum / (float) BPM_VECTOR_SIZE;
+
+		/*	calculate standard deviation of vector	*/
+		sum = 0;
+		for (i = 0; i < BPM_VECTOR_SIZE; i++)
+		{
+			sum += pow((bpm_vector[i] - avg), 2);
+		}
+		variance = sqrtf(sum / (float) BPM_VECTOR_SIZE);
+		if (variance < 2.5)
+		{
+			*bpm_avg =  (int) avg;
+			return true;
+		}
+		else
+		{
+			/*	remove minimum and maximum value in vector	*/
+			/* 1. identify index of min and max values in vector */
+			for (i=0; i < BPM_VECTOR_SIZE; i++)
+			{
+				if (bpm_vector[i] < minimum)
+				{
+					minimum = bpm_vector[i];
+					min_index = i;
+				}
+				if (bpm_vector[i] > maximum)
+				{
+					maximum = bpm_vector[i];
+					max_index = i;
+				}
+			}
+			/*	clear position in vector with disparate values	*/
+			bpm_vector[min_index] = 0;
+			bpm_vector[max_index] = 0;
+			isNeedMoreData = true;
+		}
+	}
+	return false;
+}
+
+
+
+
+
 

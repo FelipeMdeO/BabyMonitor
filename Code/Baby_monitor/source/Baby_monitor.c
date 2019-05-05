@@ -85,10 +85,12 @@
 #define LED_TOGGLE() LED_RED_TOGGLE()
 #define PIN_TOGGLE() PTB8_TOGGLE()
 
-/*		DEBUG Define	*/
-//#define MAX30100_DEBUG
-//#define MAX30100_FIFO_RAW_OUTPUT
-#define MAX30100_FILTERED_RAW_OUTPUT
+/*		DEBUG Defines	*/
+/*TODO export defines below to file with global variables	*/
+// #define MAX30100_DEBUG
+// #define MAX30100_FIFO_RAW_OUTPUT
+// #define MAX30100_FILTERED_RAW_OUTPUT
+// #define MAX30100_BEAT_DETECTOR_OUTPUT
 
 /*******************************************************************************
  * Prototypes
@@ -459,10 +461,10 @@ static void setLEDCurrents( uint8_t redLedCurrent, uint8_t IRLedCurrent )
 
 	// Shift redLed 4 positions and add in new last 4 positions IRLed bits
 	uint8_t ledsCurrent = (redLedCurrent << 4 | IRLedCurrent);
-	uint8_t readBuff[1] = { 0 };
 
 	/* First read the default value on register to verify at end if the value changed */
 #ifdef MAX30100_DEBUG
+	uint8_t readBuff[1] = { 0 };
 	I2C_ReadRegs(MAX30100_DEVICE, MAX30100_LED_CONF, readBuff, 1);
 	PRINTF("The old value to ledCurrent is 0x%x\r\n", readBuff[0]);
 #endif
@@ -789,14 +791,30 @@ int main(void)
 	struct dcFilter_t dcFilterRed;
 	struct meanDiffFilter_t meanDiffIR;
 	struct butterworthFilter_t filter;
+	struct simpleBeatDetector_t beat_detector_t;
+
+	bool isBeatDetected = false;
+	uint16_t beat_result = 0;
+	char beat_text[50] = { 0 };
+	uint16_t bmp_v[BPM_VECTOR_SIZE] = { 0 };
+	bool isConfiableOutput = false;
+	uint16_t bpm_avg = 0;
+#ifdef MAX30100_FILTERED_RAW_OUTPUT
+	char value[50] = { 0 };
+#endif
+
 
 	/*	Clean up structs to start filter process	*/
 	dcFilterClear(&dcFilterIR);
 	dcFilterClear(&dcFilterRed);
 	meanDiffFilterClear(&meanDiffIR);
+	initSimpleBeatDetector(&beat_detector_t);
+	beat_detector_t.state = SIMPLE_BEAT_DETECTOR_WAITING_STABLE;
+	init_tick();
 
 	for(;;)
 	{
+
 #ifndef MAX30100_FIFO_RAW_OUTPUT
 		isValidSample = MAX30100_Get_Sample(&sample.rawIR, &sample.rawRed);
 		if( isValidSample )
@@ -809,10 +827,29 @@ int main(void)
 			{
 				/*	toggle a pin here if you want test loop performance	*/
 				/*	GPIO_PortToggle(GPIOB, 1u << 8U);	*/
+
 				/*	low pass filter implementation	*/
 				lowPassFilter(meanDiffResIR, &filter);
+
+				/*	Beat Detector Algorithm	*/
+				isBeatDetected = checkForSimpleBeat(filter.result, &beat_detector_t, &beat_result);
+				if (isBeatDetected)
+				{
+					isBeatDetected = false;
+					isConfiableOutput = bpmAvgCalculator(beat_result, bmp_v, &bpm_avg);
+
+					if (isConfiableOutput)
+					{
+						isConfiableOutput = false;
+						sprintf(beat_text, "bpm_avg = %d\r\n", bpm_avg);
+						USART_Printf(beat_text);
+					}
+
+//					sprintf(beat_text, "beat_result = %d\r\n", beat_result);
+//					USART_Printf(beat_text);
+					}
+
 #ifdef MAX30100_FILTERED_RAW_OUTPUT
-				char value[50] = { 0 };
 				sprintf(value, "%d\r\n", (int)filter.result*1000);
 				USART_Printf(value);
 #endif
