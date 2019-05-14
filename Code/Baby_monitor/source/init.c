@@ -72,3 +72,25 @@ void USART_Printf(const char* string)
 
 	txOnGoing = 1;
 }
+
+void init_gpio_pins(void)
+{
+	/*
+	 * @brief  init_gpio_pins
+	 * @details     Function to initialize gpio pins
+	 * @param[in] void
+	 * @param[out]
+	 * @return void
+	 *
+	 * author dell-felipe
+	 * date 13 de mai de 2019
+	 *
+	 */
+	/* Define the init structure for the output toggle pin*/
+	gpio_pin_config_t toggle_config = {
+				kGPIO_DigitalOutput, 0,
+		};
+	GPIO_PinInit(GPIOB, 8U, &toggle_config);
+
+	LED_INIT();
+}

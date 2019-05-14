@@ -13,9 +13,18 @@
 #include <Driver_USART.h>
 #include <fsl_lpsci_cmsis.h>
 
+#include "pin_mux.h"
+#include "fsl_gpio.h"
+#include "fsl_port.h"
+
+#include "board.h"
+
 /*								USART Definitions 														*/
 #define APP_USART Driver_USART0
 #define ECHO_BUFFER_LENGTH 8	/*	TODO maybe change it to more bytes	*/
+
+#define LED_INIT() LED_RED_INIT(LOGIC_LED_ON)
+#define LED_TOGGLE() LED_RED_TOGGLE()
 
 extern volatile uint32_t msTicks;
 /*								USART Variables 														*/
@@ -25,6 +34,8 @@ extern volatile bool txOnGoing; 					/*	Variable to identify if data finished tr
 void init_tick(void);
 uint32_t millis(void);
 void clearMillis(void);
+
+void init_gpio_pins(void);	/*	Function to init gpio pins	*/
 
 /*								USART user Signal Event 												*/
 void USART_SignalEvent_t(uint32_t event);

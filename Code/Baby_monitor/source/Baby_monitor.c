@@ -36,12 +36,6 @@
 #include "board.h"
 #include "fsl_debug_console.h"
 
-//#include "fsl_i2c.h"
-
-#include "pin_mux.h"
-#include "fsl_gpio.h"
-#include "fsl_port.h"
-
 #include "Driver_I2C.h"
 #include "fsl_i2c_cmsis.h"
 
@@ -69,10 +63,6 @@
 #define I2C_RELEASE_SCL_PIN 3U
 #define I2C_RELEASE_BUS_COUNT 100U
 
-///*								USART Definitions 														*/
-//#define APP_USART Driver_USART0
-//#define ECHO_BUFFER_LENGTH 8
-
 /*			LPTMR Definitions					*/
 #define DEMO_LPTMR_BASE LPTMR0
 #define DEMO_LPTMR_IRQn LPTMR0_IRQn
@@ -81,9 +71,6 @@
 #define LPTMR_SOURCE_CLOCK CLOCK_GetFreq(kCLOCK_LpoClk)
 /* Define LPTMR microseconds counts value */
 #define LPTMR_USEC_COUNT 10000U /* 10 ms */
-#define LED_INIT() LED_RED_INIT(LOGIC_LED_ON)
-#define LED_TOGGLE() LED_RED_TOGGLE()
-#define PIN_TOGGLE() PTB8_TOGGLE()
 
 /*		DEBUG Defines	*/
 /*TODO export defines below to file with global variables	*/
@@ -102,7 +89,6 @@ static bool I2C_ReadRegs(uint8_t device_addr, uint8_t reg_addr, uint8_t *rxBuff,
 static bool MAX30100_Get_Sample(uint16_t *IR_sample, uint16_t *Red_sample);
 static void MAX30100_Init(void);
 static void MAX30100_ClearFIFO(void);
-//static void USART_Printf(const char* string);
 static void setLEDCurrents(uint8_t redLedCurrent, uint8_t IRLedCurrent);
 static void setSamplingRate(uint8_t samplingRate);
 static void setHighresModeEnabled(bool enabled);
@@ -709,13 +695,8 @@ static void readFIFO()
 int main(void)
 
 {
-	/*	TODO remove it from here		*/
 	init_tick();
-	//SysTick_Config(SystemCoreClock / 1000);		/* Configure SysTick to generate an interrupt every millisecond
-	/* Define the init structure for the output toggle pin*/
-	gpio_pin_config_t led_config = {
-			kGPIO_DigitalOutput, 0,
-	};
+
 
 	BOARD_InitPins();
 	BOARD_BootClockRUN();
@@ -723,8 +704,7 @@ int main(void)
 	BOARD_InitDebugConsole();
 
 	/* Init output LED GPIO. */
-	/* TODO customize gpio in extern file */
-	GPIO_PinInit(GPIOB, 8U, &led_config);
+	init_gpio_pins();	/*	gpio init pins	*/
 
 	/*			USART Config 					*/
 	CLOCK_SetLpsci0Clock(0x1U);
@@ -765,7 +745,7 @@ int main(void)
 	LPTMR_StartTimer(DEMO_LPTMR_BASE);
 
 	/*	Change position of below function, join it with init toggle pin	*/
-	LED_INIT();
+
 
 	txOnGoing = true;
 
