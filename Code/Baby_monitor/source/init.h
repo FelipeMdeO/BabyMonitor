@@ -23,8 +23,10 @@
 #define APP_USART Driver_USART0
 #define ECHO_BUFFER_LENGTH 8	/*	TODO maybe change it to more bytes	*/
 
-#define LED_INIT() LED_RED_INIT(LOGIC_LED_ON)
+//#define LED_INIT() LED_RED_INIT(LOGIC_LED_ON)
+//#define LED_INIT()
 #define LED_TOGGLE() LED_RED_TOGGLE()
+//#define BEAT_LED() LED_RED_TOGGLE()
 
 extern volatile uint32_t msTicks;
 /*								USART Variables 														*/
@@ -40,5 +42,7 @@ void init_gpio_pins(void);	/*	Function to init gpio pins	*/
 /*								USART user Signal Event 												*/
 void USART_SignalEvent_t(uint32_t event);
 void USART_Printf(const char* string);
+
+void BEAT_LED(void);
 
 #endif /* INIT_H_ */

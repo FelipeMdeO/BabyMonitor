@@ -83,6 +83,12 @@ void BOARD_InitPins(void)
 	/* PORTB6 (pin 1) is configured as PTB6 */
 	PORT_SetPinMux(PORTB, 6U, kPORT_MuxAsGpio);
 
+	/* PORTB7 Green Led */
+	PORT_SetPinMux(PORTB, 7U, kPORT_MuxAsGpio);
+
+	/* PORTB10 Blue Led */
+	PORT_SetPinMux(PORTB, 10U, kPORT_MuxAsGpio);
+
 	/* PORTB8 (pin X) is configured as PTB8 */
 	PORT_SetPinMux(PORTB, 8U, kPORT_MuxAsGpio);
 

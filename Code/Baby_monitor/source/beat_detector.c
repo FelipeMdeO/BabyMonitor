@@ -220,6 +220,7 @@ bool checkForSimpleBeat(float sample, struct simpleBeatDetector_t* simple_beat_d
 		simple_beat_detector_struct->sample = sample;
 		break;
 	case SIMPLE_BEATDETECTOR_WAITING_MAX:
+		/*	TODO Adjust in real time BEATDETECTOR_MAX_THRESHOLD	*/
 		if (sample > BEATDETECTOR_MAX_THRESHOLD && sample < simple_beat_detector_struct->sample)
 		{
 			b_times[simple_beat_detector_struct->count] = millis();

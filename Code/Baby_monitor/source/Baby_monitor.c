@@ -44,11 +44,11 @@
 
 #include "fsl_lptmr.h"
 
-
 /* My Code includes */
 #include "max30100/max30100.h"
 #include "beat_detector.h"
 #include "init.h"
+#include "spo2.h"
 
 /*******************************************************************************
  * Definitions
@@ -75,8 +75,9 @@
 /*		DEBUG Defines	*/
 /*TODO export defines below to file with global variables	*/
 // #define MAX30100_DEBUG
-// #define MAX30100_FIFO_RAW_OUTPUT
-// #define MAX30100_FILTERED_RAW_OUTPUT
+//#define MAX30100_FIFO_RAW_OUTPUT
+//#define MAX30100_FILTERED_RAW_OUTPUT
+//#define MAX30100_DC_RAW_OUTPUT
 // #define MAX30100_BEAT_DETECTOR_OUTPUT
 
 /*******************************************************************************
@@ -105,7 +106,7 @@ volatile bool completionFlag = false;
 volatile bool nakFlag = false;
 static LEDCurrent redLedCurrent = STARTING_RED_LED_CURRENT;
 /* TODO pass IRLedCurrent to static variable too */
-static bool canAdjustRedCurrent = false;
+static bool canAdjustRedCurrent = true;
 
 /*								USART Variables 														*/
 uint8_t g_txBuffer[ECHO_BUFFER_LENGTH] = { 0 }; 	/*	Data buffer 1 byte								*/
@@ -123,6 +124,7 @@ volatile uint32_t lptmrCounter2 = 0U;
  *	volatile unsigned long can assume 0 to 4,294,967,295
  *	maybe it can be reduced to unsigned int					*/
 
+bool canBlinkGreenLed = true;
 
 /*******************************************************************************
  * Code
@@ -345,38 +347,38 @@ static void balanceIntesities(float redLedDC, float IRLedDC)
 	 * date 25 de abr de 2019
 	 *
 	 */
+
+	char value[20] = { 0 };
+
 	if (canAdjustRedCurrent)
 	{
 		if (redLedCurrent == MAX30100_LED_CURRENT_50MA)
 		{
-#ifdef MAX30100_DEBUG
-			PRINTF("Red Led Current 50 MA\r\n");
-#endif
+			sprintf(value, "Red Led Current 50 MA\r\n");
+			USART_Printf(value);
 		}
 		else if (redLedCurrent == MAX30100_LED_CURRENT_0MA)
 		{
-#ifdef MAX30100_DEBUG
-			PRINTF("Red Led 0 MA\r\n");
-#endif
+			sprintf(value, "Red Led Current 0 MA\r\n");
+			USART_Printf(value);
 		}
 
 		if (IRLedDC - redLedDC > MAGIC_ACCEPTABLE_INTENSITY_DIFF && redLedCurrent < MAX30100_LED_CURRENT_50MA)
 		{
 			redLedCurrent++;
 			setLEDCurrents(redLedCurrent, DEFAULT_IR_LED_CURRENT);
-#ifdef MAX30100_DEBUG
-			PRINTF("Red Led Current +\r\n");
-#endif
+
+			sprintf(value, "Red Led Current +\r\n");
+			USART_Printf(value);
 		}
 		else if(redLedDC - IRLedDC > MAGIC_ACCEPTABLE_INTENSITY_DIFF && redLedCurrent > 0)
 		{
 			redLedCurrent--;
 			setLEDCurrents(redLedCurrent, DEFAULT_IR_LED_CURRENT);
+			sprintf(value, "Red Led Current -\r\n");
+			USART_Printf(value);
 		}
-#ifdef MAX30100_DEBUG
-		PRINTF("Red Led Current -\r\n");
-#endif
-		canAdjustRedCurrent = false;
+		//		canAdjustRedCurrent = false;
 	}
 }
 
@@ -543,8 +545,7 @@ static void MAX30100_Init(void)
 
 	Set_mode(MAX30100_MODE_SPO2_HR);
 	/* DEFAULT_IR_LED_CURRENT = */
-	setLEDCurrents(MAX30100_LED_CURRENT_50MA, MAX30100_LED_CURRENT_50MA);
-	//setLEDCurrents(MAX30100_LED_CURRENT_50MA, MAX30100_LED_CURRENT_50MA); /* TODO remember change here*/
+	setLEDCurrents(STARTING_RED_LED_CURRENT, DEFAULT_IR_LED_CURRENT);
 	setLEDPulseWidth(DEFAULT_LED_PULSE_WIDTH);
 	setSamplingRate(DEFAULT_SAMPLING_RATE);
 	setHighresModeEnabled(true);
@@ -601,7 +602,7 @@ static bool MAX30100_Get_Sample(uint16_t *IR_sample, uint16_t *Red_sample)
 	return false;
 }
 
-static void readFIFO()
+static bool readFIFO(uint16_t *rawIR, uint16_t *rawRed)
 {
 	/*
 	 * @brief  readFIFO
@@ -616,10 +617,12 @@ static void readFIFO()
 	 */
 
 	uint8_t  buffer[4 * 16] = { 0 };
-	uint16_t rawIR = 0;
-	uint16_t rawRed = 0;
+	//	uint16_t rawIR = 0;
+	//	uint16_t rawRed = 0;
+	*rawIR = 0;
+	*rawRed = 0;
 	uint8_t readBuff[3] = { 0 };
-	char value[50] = { 0 };
+	char value[20] = { 0 };
 
 	/* Read Fifo write pointer */
 	I2C_ReadRegs(MAX30100_DEVICE, MAX30100_FIFO_WRITE_POINTER, readBuff, 3);
@@ -642,7 +645,7 @@ static void readFIFO()
 	int numberOfSamples = readBuff[0] - readBuff[2];
 
 	if (numberOfSamples == 0)
-		return;
+		return false;
 
 	if (numberOfSamples < 0) {
 		numberOfSamples += 16;
@@ -660,23 +663,25 @@ static void readFIFO()
 		for (uint8_t i = 0; i < numberOfSamples; i++)
 		{
 			/*		*/
-			rawIR = (buffer[i * 4] << 8) | buffer[1 + i * 4];
-			rawRed = (buffer[2 + i * 4] << 8) | buffer[3 + i * 4];;
+			*rawIR = (buffer[i * 4] << 8) | buffer[1 + i * 4];
+			*rawRed = (buffer[2 + i * 4] << 8) | buffer[3 + i * 4];;
 			GPIO_PortToggle(GPIOB, 1u << 8U); /*	TODO Changed it to function call	*/
 
 #ifdef MAX30100_DEBUG
 			sprintf(value, " S[%d] = %04x\r\n", i, rawIR);
 #else
-			sprintf(value, "%04x\t%04x\r\n", rawIR, rawRed);
+			sprintf(value, "%04x\t%04x\r\n", *rawIR, *rawRed);
 			USART_Printf(value);
 #endif
 			break;
 		}
+		return true;
 	}
+	return false;
 
 #ifdef MAX30100_DEBUG
-	PRINTF("IR output = 0x%x\r\n", rawIR);
-	PRINTF("Red output = 0x%x\r\n", rawRed);
+	PRINTF("IR output = 0x%x\r\n", *rawIR);
+	PRINTF("Red output = 0x%x\r\n", *rawRed);
 #endif
 
 }
@@ -696,7 +701,6 @@ int main(void)
 
 {
 	init_tick();
-
 
 	BOARD_InitPins();
 	BOARD_BootClockRUN();
@@ -767,8 +771,8 @@ int main(void)
 	/*	TODO move the variables bellow to correct place	*/
 	bool isValidSample = false;
 	struct fifo_t sample;
-	struct dcFilter_t dcFilterIR;
-	struct dcFilter_t dcFilterRed;
+	struct dcFilter_t acFilterIR;
+	struct dcFilter_t acFilterRed;
 	struct meanDiffFilter_t meanDiffIR;
 	struct butterworthFilter_t filter;
 	struct simpleBeatDetector_t beat_detector_t;
@@ -779,14 +783,22 @@ int main(void)
 	uint16_t bmp_v[BPM_VECTOR_SIZE] = { 0 };
 	bool isConfiableOutput = false;
 	uint16_t bpm_avg = 0;
+
+	uint8_t spo2 = 0;
+	bool isSpo2Ready = false;
+
+#ifdef MAX30100_FIFO_RAW_OUTPUT
+	uint16_t irRaw, redRaw;
+	bool canPrint = false;
+#endif
+
 #ifdef MAX30100_FILTERED_RAW_OUTPUT
 	char value[50] = { 0 };
 #endif
 
-
 	/*	Clean up structs to start filter process	*/
-	dcFilterClear(&dcFilterIR);
-	dcFilterClear(&dcFilterRed);
+	dcFilterClear(&acFilterIR);
+	dcFilterClear(&acFilterRed);
 	meanDiffFilterClear(&meanDiffIR);
 	initSimpleBeatDetector(&beat_detector_t);
 	beat_detector_t.state = SIMPLE_BEAT_DETECTOR_WAITING_STABLE;
@@ -794,14 +806,12 @@ int main(void)
 
 	for(;;)
 	{
-
-#ifndef MAX30100_FIFO_RAW_OUTPUT
 		isValidSample = MAX30100_Get_Sample(&sample.rawIR, &sample.rawRed);
 		if( isValidSample )
 		{
-			dcFilterIR = dcRemoval((float)sample.rawIR, dcFilterIR.w, ALPHA);
-			dcFilterRed = dcRemoval((float)sample.rawRed, dcFilterRed.w, ALPHA);
-			float meanDiffResIR = meanDiff(dcFilterIR.result, &meanDiffIR);
+			acFilterIR = dcRemoval((float)sample.rawIR, acFilterIR.w, ALPHA);
+			acFilterRed = dcRemoval((float)sample.rawRed, acFilterRed.w, ALPHA);
+			float meanDiffResIR = meanDiff(acFilterIR.result, &meanDiffIR);
 			/*	IF mean vector was fully filed	*/
 			if (meanDiffIR.count >= MEAN_FILTER_SIZE)
 			{
@@ -811,44 +821,67 @@ int main(void)
 				/*	low pass filter implementation	*/
 				lowPassFilter(meanDiffResIR, &filter);
 
+#ifdef MAX30100_FILTERED_RAW_OUTPUT
+				sprintf(value, "%d\t", (int)filter.result);
+				USART_Printf(value);
+				sprintf(value, "%d\r\n", (int)acFilterRed.result);
+				USART_Printf(value);
+#endif
+
+#ifndef MAX30100_FIFO_RAW_OUTPUT
 				/*	Beat Detector Algorithm	*/
 				isBeatDetected = checkForSimpleBeat(filter.result, &beat_detector_t, &beat_result);
 				if (isBeatDetected)
 				{
+					canBlinkGreenLed = false;
+					BEAT_LED(); /*	indicate beat signal using red led	*/
+					isSpo2Ready = spo2Calculator(acFilterIR.result, acFilterRed.result, isBeatDetected, &spo2);
+					if (isSpo2Ready)
+					{
+						sprintf(beat_text, "spo2 = %d\r\n", spo2);
+						USART_Printf(beat_text);
+						isSpo2Ready = false;
+					}
+
 					isBeatDetected = false;
 					isConfiableOutput = bpmAvgCalculator(beat_result, bmp_v, &bpm_avg);
 
 					if (isConfiableOutput)
 					{
 						isConfiableOutput = false;
+
 						sprintf(beat_text, "bpm_avg = %d\r\n", bpm_avg);
 						USART_Printf(beat_text);
 					}
 
-//					sprintf(beat_text, "beat_result = %d\r\n", beat_result);
-//					USART_Printf(beat_text);
-					}
-
-#ifdef MAX30100_FILTERED_RAW_OUTPUT
-				sprintf(value, "%d\r\n", (int)filter.result*1000);
-				USART_Printf(value);
+					//					sprintf(beat_text, "beat_result = %d\r\n", beat_result);
+					//					USART_Printf(beat_text);
+				}
 #endif
 			}
 		}
+#ifdef MAX30100_FIFO_RAW_OUTPUT
+		canPrint = readFIFO(&irRaw, &redRaw);
 #endif
-
 		/*	TODO Verify if lptmrCounter and lptmrCounter2 can be short type	*/
 		if (currentCounter != lptmrCounter)	/* lptmrCounter change when 10 ms pass */
 		{
 			currentCounter = lptmrCounter;
-#ifdef MAX30100_FIFO_RAW_OUTPUT
-			readFIFO();
-#endif
-
 			if (lptmrCounter > 99)
 			{
 				lptmrCounter = 0;
-				LED_TOGGLE();
+#ifdef MAX30100_FIFO_RAW_OUTPUT
+				balanceIntesities(redRaw, irRaw);
+#endif
+				//				LED_TOGGLE();	/*Indicate life of system using Green Led	*/
+				if (canBlinkGreenLed)
+				{
+					LED_GREEN_TOGGLE();
+				}
+				else
+				{
+					LED_GREEN_OFF();
+				}
 			}
 			/*	Adjust Red Led current balancing with 500 ms (10 ms * 50 = 500 ms)	*/
 			if (lptmrCounter2 > 49)

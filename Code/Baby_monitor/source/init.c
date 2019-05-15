@@ -42,7 +42,6 @@ uint32_t millis(void)
 	return msTicks;
 }
 
-
 void init_tick(void)
 {
 	SysTick_Config(SystemCoreClock / 1000);
@@ -73,6 +72,12 @@ void USART_Printf(const char* string)
 	txOnGoing = 1;
 }
 
+void LedInit(void)
+{
+	LED_GREEN_INIT(LOGIC_LED_ON);
+	LED_RED_INIT(LOGIC_LED_OFF);
+}
+
 void init_gpio_pins(void)
 {
 	/*
@@ -90,7 +95,23 @@ void init_gpio_pins(void)
 	gpio_pin_config_t toggle_config = {
 				kGPIO_DigitalOutput, 0,
 		};
+
 	GPIO_PinInit(GPIOB, 8U, &toggle_config);
 
-	LED_INIT();
+	LedInit();
+}
+
+void delay(void)
+{
+    volatile uint32_t i = 0;
+    for (i = 0; i < 50000; ++i)
+    {
+        __asm("NOP"); /* delay */
+    }
+}
+
+void BEAT_LED(void) {
+	LED_RED_ON();
+	delay();
+	LED_RED_OFF();
 }
