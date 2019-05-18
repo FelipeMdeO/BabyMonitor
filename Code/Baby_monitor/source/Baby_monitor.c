@@ -53,15 +53,6 @@
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
-/* I2C Definitions */
-#define I2C_MASTER Driver_I2C0
-#define I2C_RELEASE_SDA_PORT PORTB
-#define I2C_RELEASE_SCL_PORT PORTB
-#define I2C_RELEASE_SDA_GPIO GPIOB
-#define I2C_RELEASE_SDA_PIN 4U
-#define I2C_RELEASE_SCL_GPIO GPIOB
-#define I2C_RELEASE_SCL_PIN 3U
-#define I2C_RELEASE_BUS_COUNT 100U
 
 /*			LPTMR Definitions					*/
 #define DEMO_LPTMR_BASE LPTMR0
@@ -83,10 +74,6 @@
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
-void BOARD_I2C_ReleaseBus(void);
-
-static bool I2C_WriteReg(uint8_t device_addr, uint8_t reg_addr, uint8_t value);
-static bool I2C_ReadRegs(uint8_t device_addr, uint8_t reg_addr, uint8_t *rxBuff, uint32_t rxSize);
 static bool MAX30100_Get_Sample(uint16_t *IR_sample, uint16_t *Red_sample);
 static void MAX30100_Init(void);
 static void MAX30100_ClearFIFO(void);
@@ -95,15 +82,10 @@ static void setSamplingRate(uint8_t samplingRate);
 static void setHighresModeEnabled(bool enabled);
 static void balanceIntesities(float redLedDC, float IRLedDC);
 
-/*								USART user Signal Event 												*/
-//void USART_SignalEvent_t(uint32_t event);
-
 /*******************************************************************************
  * Variables
  ******************************************************************************/
 
-volatile bool completionFlag = false;
-volatile bool nakFlag = false;
 static LEDCurrent redLedCurrent = STARTING_RED_LED_CURRENT;
 /* TODO pass IRLedCurrent to static variable too */
 static bool canAdjustRedCurrent = true;
@@ -144,163 +126,6 @@ void LPTMR_LED_HANDLER(void)
 
 	__DSB();
 	__ISB();
-}
-
-//uint32_t UART0_GetFreq(void)
-//{
-//	return CLOCK_GetFreq(kCLOCK_CoreSysClk);
-//}
-//
-//void USART_SignalEvent_t(uint32_t event)
-//{
-//	if (ARM_USART_EVENT_SEND_COMPLETE == event)
-//	{
-//		txOnGoing = false;
-//	}
-//
-//}
-
-
-static void i2c_release_bus_delay(void)
-{
-	uint32_t i = 0;
-	for (i = 0; i < I2C_RELEASE_BUS_COUNT; i++)
-	{
-		__NOP();
-	}
-}
-
-void BOARD_I2C_ReleaseBus(void)
-{
-	uint8_t i = 0;
-	gpio_pin_config_t pin_config;
-	port_pin_config_t i2c_pin_config = {0};
-
-	/* Config pin mux as gpio */
-	i2c_pin_config.pullSelect = kPORT_PullUp;
-	i2c_pin_config.mux = kPORT_MuxAsGpio;
-
-	pin_config.pinDirection = kGPIO_DigitalOutput;
-	pin_config.outputLogic = 1U;
-	CLOCK_EnableClock(kCLOCK_PortB);
-	PORT_SetPinConfig(I2C_RELEASE_SCL_PORT, I2C_RELEASE_SCL_PIN, &i2c_pin_config);
-	PORT_SetPinConfig(I2C_RELEASE_SDA_PORT, I2C_RELEASE_SDA_PIN, &i2c_pin_config);
-
-	GPIO_PinInit(I2C_RELEASE_SCL_GPIO, I2C_RELEASE_SCL_PIN, &pin_config);
-	GPIO_PinInit(I2C_RELEASE_SDA_GPIO, I2C_RELEASE_SDA_PIN, &pin_config);
-
-	/* Drive SDA low first to simulate a start */
-	GPIO_PinWrite(I2C_RELEASE_SDA_GPIO, I2C_RELEASE_SDA_PIN, 0U);
-	i2c_release_bus_delay();
-
-	/* Send 9 pulses on SCL and keep SDA high */
-	for (i = 0; i < 9; i++)
-	{
-		GPIO_PinWrite(I2C_RELEASE_SCL_GPIO, I2C_RELEASE_SCL_PIN, 0U);
-		i2c_release_bus_delay();
-
-		GPIO_PinWrite(I2C_RELEASE_SDA_GPIO, I2C_RELEASE_SDA_PIN, 1U);
-		i2c_release_bus_delay();
-
-		GPIO_PinWrite(I2C_RELEASE_SCL_GPIO, I2C_RELEASE_SCL_PIN, 1U);
-		i2c_release_bus_delay();
-		i2c_release_bus_delay();
-	}
-
-	/* Send stop */
-	GPIO_PinWrite(I2C_RELEASE_SCL_GPIO, I2C_RELEASE_SCL_PIN, 0U);
-	i2c_release_bus_delay();
-
-	GPIO_PinWrite(I2C_RELEASE_SDA_GPIO, I2C_RELEASE_SDA_PIN, 0U);
-	i2c_release_bus_delay();
-
-	GPIO_PinWrite(I2C_RELEASE_SCL_GPIO, I2C_RELEASE_SCL_PIN, 1U);
-	i2c_release_bus_delay();
-
-	GPIO_PinWrite(I2C_RELEASE_SDA_GPIO, I2C_RELEASE_SDA_PIN, 1U);
-	i2c_release_bus_delay();
-}
-
-uint32_t I2C0_GetFreq(void)
-{
-	return CLOCK_GetFreq(I2C0_CLK_SRC);
-}
-
-void I2C_MasterSignalEvent_t(uint32_t event)
-{
-	if (event == ARM_I2C_EVENT_TRANSFER_DONE)
-	{
-		completionFlag = true;
-	}
-	if (event == ARM_I2C_EVENT_ADDRESS_NACK)
-	{
-		nakFlag = true;
-	}
-}
-
-static bool I2C_WriteReg(uint8_t device_addr, uint8_t reg_addr, uint8_t value)
-{
-	uint8_t writedata[2] = {reg_addr, value};
-
-	/*  direction=write : start+device_write;cmdbuff;xBuff; */
-	/*  direction=recive : start+device_write;cmdbuff;repeatStart+device_read;xBuff; */
-
-	I2C_MASTER.MasterTransmit(device_addr, writedata, 2, false);
-
-	/*  wait for transfer completed. */
-	while ((!nakFlag) && (!completionFlag))
-	{
-	}
-
-	nakFlag = false;
-
-	if (completionFlag == true)
-	{
-		completionFlag = false;
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
-static bool I2C_ReadRegs(uint8_t device_addr, uint8_t reg_addr, uint8_t *rxBuff, uint32_t rxSize)
-{
-	/*  direction=write : start+device_write;cmdbuff;xBuff; */
-	/*  direction=recive : start+device_write;cmdbuff;repeatStart+device_read;xBuff; */
-
-	I2C_MASTER.MasterTransmit(device_addr, &reg_addr, 1, false);
-	while ((!nakFlag) && (!completionFlag))
-	{
-	}
-	nakFlag = false;
-	completionFlag = false;
-	I2C_MASTER.MasterReceive(device_addr, rxBuff, rxSize, false);
-
-	/*  wait for transfer completed. */
-	while ((!nakFlag) && (!completionFlag))
-	{
-	}
-
-	nakFlag = false;
-
-	if (completionFlag == true)
-	{
-		completionFlag = false;
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
-static void I2C_Init(void)
-{
-	I2C_MASTER.Initialize(I2C_MasterSignalEvent_t);
-	I2C_MASTER.PowerControl(ARM_POWER_FULL);
-	I2C_MASTER.Control(ARM_I2C_BUS_SPEED, ARM_I2C_BUS_SPEED_FAST_PLUS);
 }
 
 static void Set_mode(uint8_t mode)
@@ -711,11 +536,7 @@ int main(void)
 	init_gpio_pins();	/*	gpio init pins	*/
 
 	/*			USART Config 					*/
-	CLOCK_SetLpsci0Clock(0x1U);
-	APP_USART.Initialize(USART_SignalEvent_t);
-	APP_USART.PowerControl(ARM_POWER_FULL);
-	APP_USART.Control(ARM_USART_MODE_ASYNCHRONOUS, BOARD_DEBUG_UART_BAUDRATE);
-
+	init_usart();
 
 	/* Configure LPTMR */
 	/*
