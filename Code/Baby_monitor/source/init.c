@@ -82,6 +82,7 @@ void LedInit(void)
 {
 	LED_GREEN_INIT(LOGIC_LED_ON);
 	LED_RED_INIT(LOGIC_LED_OFF);
+	LED_BLUE_INIT(LOGIC_LED_OFF);
 }
 
 void init_gpio_pins(void)
@@ -99,8 +100,8 @@ void init_gpio_pins(void)
 	 */
 	/* Define the init structure for the output toggle pin*/
 	gpio_pin_config_t toggle_config = {
-				kGPIO_DigitalOutput, 0,
-		};
+			kGPIO_DigitalOutput, 0,
+	};
 
 	GPIO_PinInit(GPIOB, 8U, &toggle_config);
 
@@ -109,11 +110,11 @@ void init_gpio_pins(void)
 
 void delay(void)
 {
-    volatile uint32_t i = 0;
-    for (i = 0; i < 50000; ++i)
-    {
-        __asm("NOP"); /* delay */
-    }
+	volatile uint32_t i = 0;
+	for (i = 0; i < 50000; ++i)
+	{
+		__asm("NOP"); /* delay */
+	}
 }
 
 void BEAT_LED(void) {
@@ -122,8 +123,17 @@ void BEAT_LED(void) {
 	LED_RED_OFF();
 }
 
+void BLINK_BLUE(void)
+{
+	LED_BLUE_ON();
+	delay();
+	LED_BLUE_OFF();
+}
+
 void init_usart(void)
 {
+	txOnGoing = true;
+
 	CLOCK_SetLpsci0Clock(0x1U);
 	APP_USART.Initialize(USART_SignalEvent_t);
 	APP_USART.PowerControl(ARM_POWER_FULL);
@@ -270,4 +280,27 @@ void I2C_Init(void)
 	I2C_MASTER.Initialize(I2C_MasterSignalEvent_t);
 	I2C_MASTER.PowerControl(ARM_POWER_FULL);
 	I2C_MASTER.Control(ARM_I2C_BUS_SPEED, ARM_I2C_BUS_SPEED_FAST_PLUS);
+}
+
+void config_lptmr(void)
+{
+	LPTMR_GetDefaultConfig(&lptmrConfig);
+
+	/* Initialize the LPTMR */
+	LPTMR_Init(DEMO_LPTMR_BASE, &lptmrConfig);
+
+	/*
+	 * Set timer period.
+	 * Note : the parameter "ticks" of LPTMR_SetTimerPeriod should be equal or greater than 1.
+	 */
+	LPTMR_SetTimerPeriod(DEMO_LPTMR_BASE, USEC_TO_COUNT(LPTMR_USEC_COUNT, LPTMR_SOURCE_CLOCK));
+
+	/* Enable timer interrupt */
+	LPTMR_EnableInterrupts(DEMO_LPTMR_BASE, kLPTMR_TimerInterruptEnable);
+
+	/* Enable at the NVIC */
+	EnableIRQ(DEMO_LPTMR_IRQn);
+
+	/* Start counting */
+	LPTMR_StartTimer(DEMO_LPTMR_BASE);
 }

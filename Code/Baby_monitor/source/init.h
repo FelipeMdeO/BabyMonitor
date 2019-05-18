@@ -20,6 +20,8 @@
 #include "Driver_I2C.h"
 #include "fsl_i2c_cmsis.h"
 
+#include "fsl_lptmr.h"
+
 #include "board.h"
 
 #include "vars.h"
@@ -39,6 +41,15 @@
 #define I2C_RELEASE_SCL_GPIO GPIOB
 #define I2C_RELEASE_SCL_PIN 3U
 #define I2C_RELEASE_BUS_COUNT 100U
+
+/*			LPTMR Definitions					*/
+#define DEMO_LPTMR_BASE LPTMR0
+#define DEMO_LPTMR_IRQn LPTMR0_IRQn
+#define LPTMR_LED_HANDLER LPTMR0_IRQHandler
+/* Get source clock for LPTMR driver */
+#define LPTMR_SOURCE_CLOCK CLOCK_GetFreq(kCLOCK_LpoClk)
+/* Define LPTMR microseconds counts value */
+#define LPTMR_USEC_COUNT 10000U /* 10 ms */
 
 /*	I2C Prototypes	*/
 void BOARD_I2C_ReleaseBus(void);
@@ -61,11 +72,13 @@ extern volatile bool txOnGoing; 					/*	Variable to identify if data finished tr
 /*	USART CONFIG	*/
 void init_usart(void);
 
-/*	I2C Variables	*/
-
+/*	LPTMR CONFIG and VARIABLES*/
 void init_tick(void);
 uint32_t millis(void);
 void clearMillis(void);
+void config_lptmr(void);
+
+extern lptmr_config_t lptmrConfig;
 
 void init_gpio_pins(void);	/*	Function to init gpio pins	*/
 
@@ -74,5 +87,6 @@ void USART_SignalEvent_t(uint32_t event);
 void USART_Printf(const char* string);
 
 void BEAT_LED(void);
+void BLINK_BLUE(void);
 
 #endif /* INIT_H_ */

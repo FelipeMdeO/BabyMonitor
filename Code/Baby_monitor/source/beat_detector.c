@@ -191,6 +191,15 @@ void initSimpleBeatDetector(struct simpleBeatDetector_t* simple_beat_detector_st
 
 }
 
+void reStartSimpleBeatDetector(struct simpleBeatDetector_t* simple_beat_detector_struct)
+{
+	simple_beat_detector_struct->state = SIMPLE_BEATDETECTOR_INIT;
+	simple_beat_detector_struct->count = 1;
+	simple_beat_detector_struct->sample = 0;
+
+	b_times[0] = b_times[1];
+}
+
 bool checkForSimpleBeat(float sample, struct simpleBeatDetector_t* simple_beat_detector_struct, uint16_t* beat_result_p)
 {
 
@@ -245,7 +254,7 @@ bool checkForSimpleBeat(float sample, struct simpleBeatDetector_t* simple_beat_d
 		sprintf(value, "b_[0]=%d b_[1]=%d Bpm=%d\r\n", b_times[0], b_times[1], Bpm);
 		USART_Printf(value);
 #endif
-		initSimpleBeatDetector(simple_beat_detector_struct);
+		reStartSimpleBeatDetector(simple_beat_detector_struct);
 
 		if (Bpm > 30 && Bpm < 280)
 		{

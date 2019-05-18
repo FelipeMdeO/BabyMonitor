@@ -18,7 +18,8 @@
 // Debug defines
 // #define MAX30100_BEAT_DETECTOR_OUTPUT
 
-#define BEATDETECTOR_INIT_HOLDOFF					2000    // in ms, how long to wait before counting
+//#define BEATDETECTOR_INIT_HOLDOFF					2000    // in ms, how long to wait before counting
+#define BEATDETECTOR_INIT_HOLDOFF					1    // in ms, how long to wait before counting
 #define BEATDETECTOR_MASKING_HOLDOFF				150     // in ms, non-retriggerable window after beat detection
 #define BEATDETECTOR_BPFILTER_ALPHA					0.6     // EMA factor for the beat period value
 #define BEATDETECTOR_MIN_THRESHOLD					20      // minimum threshold (filtered) value
@@ -93,7 +94,7 @@ struct beatDetector_t
 	uint8_t count;
 };
 
-extern struct beatDetector_t beat_detector_t;
+extern struct simpleBeatDetector_t beat_detector_t;
 
 struct simpleBeatDetector_t
 {
@@ -117,6 +118,7 @@ void initBeatDetector(struct beatDetector_t* pt_beat_detector);
 bool addSample(float sample);
 bool checkForBeat(float sample, struct beatDetector_t* beatDetectorStruct);	/*	TODO Correct param name of this function to standard	*/
 void initSimpleBeatDetector(struct simpleBeatDetector_t* simple_beat_detector_struct);
+void reStartSimpleBeatDetector(struct simpleBeatDetector_t* simple_beat_detector_struct);
 bool checkForSimpleBeat(float sample, struct simpleBeatDetector_t* simple_beat_detector_struct, uint16_t* beat_result_p);
 bool bpmAvgCalculator(uint16_t bpm, uint16_t* bpm_vector, uint16_t* bpm_avg);
 

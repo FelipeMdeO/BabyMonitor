@@ -54,14 +54,7 @@
  * Definitions
  ******************************************************************************/
 
-/*			LPTMR Definitions					*/
-#define DEMO_LPTMR_BASE LPTMR0
-#define DEMO_LPTMR_IRQn LPTMR0_IRQn
-#define LPTMR_LED_HANDLER LPTMR0_IRQHandler
-/* Get source clock for LPTMR driver */
-#define LPTMR_SOURCE_CLOCK CLOCK_GetFreq(kCLOCK_LpoClk)
-/* Define LPTMR microseconds counts value */
-#define LPTMR_USEC_COUNT 10000U /* 10 ms */
+
 
 /*		DEBUG Defines	*/
 /*TODO export defines below to file with global variables	*/
@@ -74,11 +67,32 @@
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
-
-
+bool processData(void);
+void initVariableToProcess();
 /*******************************************************************************
  * Variables
  ******************************************************************************/
+/*	TODO move the variables bellow to correct place	*/
+bool isValidSample = false;
+struct fifo_t sample;
+struct dcFilter_t acFilterIR;
+struct dcFilter_t acFilterRed;
+struct meanDiffFilter_t meanDiffIR;
+struct butterworthFilter_t filter;
+struct simpleBeatDetector_t beat_detector_t;
+
+bool isBeatDetected = false;
+uint16_t beat_result = 0;
+char beat_text[50] = { 0 };
+uint16_t bmp_v[BPM_VECTOR_SIZE] = { 0 };
+bool isConfiableOutput = false;
+uint16_t bpm_avg = 0;
+
+uint8_t spo2 = 0;
+bool isSpo2Ready = false;
+
+bool canCalculateSpo2 = true;
+bool canCalculateBPM = true;
 
 /*		LPTMR Variables		*/
 uint32_t currentCounter = 0U;
@@ -86,19 +100,16 @@ lptmr_config_t lptmrConfig;
 
 volatile uint32_t lptmrCounter = 0;
 volatile uint32_t lptmrCounter2 = 0U;
-//volatile uint32_t msTicks = 0;
-/*	variable to count time in milliseconds passed
- *	NOTE
- *	volatile unsigned long can assume 0 to 4,294,967,295
- *	maybe it can be reduced to unsigned int					*/
 
 bool canBlinkGreenLed = true;
+bool finishedRead = false;
 
 /*******************************************************************************
  * Code
  ******************************************************************************/
 
-void SysTick_Handler(void)  {                              	  /* SysTick interrupt Handler. */
+void SysTick_Handler(void)
+{                              	  /* SysTick interrupt Handler. */
 	msTicks++;                                                /* See startup file startup_LPC17xx.s for SysTick vector */
 }
 
@@ -114,6 +125,95 @@ void LPTMR_LED_HANDLER(void)
 	__ISB();
 }
 
+
+void initVariableToProcess(void)
+{
+	/*	Clean up structs to start filter process	*/
+	dcFilterClear(&acFilterIR);
+	dcFilterClear(&acFilterRed);
+	meanDiffFilterClear(&meanDiffIR);
+	initSimpleBeatDetector(&beat_detector_t);
+	beat_detector_t.state = SIMPLE_BEAT_DETECTOR_WAITING_STABLE;
+	init_tick();
+
+}
+
+bool processData(void)
+{
+	isValidSample = MAX30100_Get_Sample(&sample.rawIR, &sample.rawRed);
+	if( isValidSample )
+	{
+		acFilterIR = dcRemoval((float)sample.rawIR, acFilterIR.w, ALPHA);
+		acFilterRed = dcRemoval((float)sample.rawRed, acFilterRed.w, ALPHA);
+		float meanDiffResIR = meanDiff(acFilterIR.result, &meanDiffIR);
+		/*	IF mean vector was fully filed	*/
+		if (meanDiffIR.count >= MEAN_FILTER_SIZE)
+		{
+			/*	toggle a pin here if you want test loop performance	*/
+			/*	GPIO_PortToggle(GPIOB, 1u << 8U);	*/
+
+			/*	low pass filter implementation	*/
+			lowPassFilter(meanDiffResIR, &filter);
+
+#ifdef MAX30100_FILTERED_RAW_OUTPUT
+			sprintf(value, "%d\t", (int)filter.result);
+			USART_Printf(value);
+			sprintf(value, "%d\r\n", (int)acFilterRed.result);
+			USART_Printf(value);
+#endif
+
+#ifndef MAX30100_FIFO_RAW_OUTPUT
+			/*	Beat Detector Algorithm	*/
+			isBeatDetected = checkForSimpleBeat(filter.result, &beat_detector_t, &beat_result);
+			if (isBeatDetected)
+			{
+				canBlinkGreenLed = false;
+				BEAT_LED(); /*	indicate beat signal using red led	*/
+				if (canCalculateSpo2)
+				{
+					isSpo2Ready = spo2Calculator(acFilterIR.result, acFilterRed.result, isBeatDetected, &spo2);
+					if(isSpo2Ready)
+						canCalculateSpo2 = false;
+				}
+				//					if (isSpo2Ready)
+				//					{
+				//						sprintf(beat_text, "spo2 = %d\r\n", spo2);
+				//						USART_Printf(beat_text);
+				//						isSpo2Ready = false;
+				//					}
+
+				isBeatDetected = false;
+				if (canCalculateBPM)
+				{
+					isConfiableOutput = bpmAvgCalculator(beat_result, bmp_v, &bpm_avg);
+					if (isConfiableOutput)
+						canCalculateBPM = false;
+				}
+
+				if (!canCalculateSpo2 && !canCalculateBPM)
+				{
+					isConfiableOutput = false;
+					isSpo2Ready = false;
+					canCalculateBPM = true;
+					canCalculateSpo2 = true;
+					sprintf(beat_text, "bpm_avg = %d \t sp2 = %d \r\n", bpm_avg, spo2);
+					USART_Printf(beat_text);
+
+					return true;
+				}
+
+				//					sprintf(beat_text, "beat_result = %d\r\n", beat_result);
+				//					USART_Printf(beat_text);
+			}
+#endif
+		}
+	}
+#ifdef MAX30100_FIFO_RAW_OUTPUT
+	canPrint = readFIFO(&irRaw, &redRaw);
+#endif
+
+	return false;
+}
 
 int main(void)
 
@@ -131,41 +231,11 @@ int main(void)
 	/*			USART Config 					*/
 	init_usart();
 
-	/* Configure LPTMR */
-	/*
-	 * lptmrConfig.timerMode = kLPTMR_TimerModeTimeCounter;
-	 * lptmrConfig.pinSelect = kLPTMR_PinSelectInput_0;
-	 * lptmrConfig.pinPolarity = kLPTMR_PinPolarityActiveHigh;
-	 * lptmrConfig.enableFreeRunning = false;
-	 * lptmrConfig.bypassPrescaler = true;
-	 * lptmrConfig.prescalerClockSource = kLPTMR_PrescalerClock_1;
-	 * lptmrConfig.value = kLPTMR_Prescale_Glitch_0;
-	 */
-
-	LPTMR_GetDefaultConfig(&lptmrConfig);
-
-	/* Initialize the LPTMR */
-	LPTMR_Init(DEMO_LPTMR_BASE, &lptmrConfig);
-
-	/*
-	 * Set timer period.
-	 * Note : the parameter "ticks" of LPTMR_SetTimerPeriod should be equal or greater than 1.
-	 */
-	LPTMR_SetTimerPeriod(DEMO_LPTMR_BASE, USEC_TO_COUNT(LPTMR_USEC_COUNT, LPTMR_SOURCE_CLOCK));
-
-	/* Enable timer interrupt */
-	LPTMR_EnableInterrupts(DEMO_LPTMR_BASE, kLPTMR_TimerInterruptEnable);
-
-	/* Enable at the NVIC */
-	EnableIRQ(DEMO_LPTMR_IRQn);
-
-	/* Start counting */
-	LPTMR_StartTimer(DEMO_LPTMR_BASE);
-
-	txOnGoing = true;
+	/*	LPTMR Init	*/
+	config_lptmr();
 
 #ifdef MAX30100_DEBUG
-	/*	TODO Separate define for USART and one to USB	*/
+	/*	TODO Separate #define for USART and one to USB	*/
 	//USART_Printf("Application Starting\r\n");
 	PRINTF("Application Starting\r\n");
 #endif
@@ -175,105 +245,20 @@ int main(void)
 	/*	MAX30100 initialization	*/
 	MAX30100_Init();
 
-#ifdef MAX30100_DEBUG
-	PRINTF("\r\nEnd of I2C MAX30100 test .\r\n");
-#endif
-
-	/*	TODO move the variables bellow to correct place	*/
-	bool isValidSample = false;
-	struct fifo_t sample;
-	struct dcFilter_t acFilterIR;
-	struct dcFilter_t acFilterRed;
-	struct meanDiffFilter_t meanDiffIR;
-	struct butterworthFilter_t filter;
-	struct simpleBeatDetector_t beat_detector_t;
-
-	bool isBeatDetected = false;
-	uint16_t beat_result = 0;
-	char beat_text[50] = { 0 };
-	uint16_t bmp_v[BPM_VECTOR_SIZE] = { 0 };
-	bool isConfiableOutput = false;
-	uint16_t bpm_avg = 0;
-
-	uint8_t spo2 = 0;
-	bool isSpo2Ready = false;
-
-#ifdef MAX30100_FIFO_RAW_OUTPUT
-	uint16_t irRaw, redRaw;
-	bool canPrint = false;
-#endif
-
-#ifdef MAX30100_FILTERED_RAW_OUTPUT
-	char value[50] = { 0 };
-#endif
-
-	/*	Clean up structs to start filter process	*/
-	dcFilterClear(&acFilterIR);
-	dcFilterClear(&acFilterRed);
-	meanDiffFilterClear(&meanDiffIR);
-	initSimpleBeatDetector(&beat_detector_t);
-	beat_detector_t.state = SIMPLE_BEAT_DETECTOR_WAITING_STABLE;
-	init_tick();
+	initVariableToProcess();
 
 	for(;;)
 	{
-		isValidSample = MAX30100_Get_Sample(&sample.rawIR, &sample.rawRed);
-		if( isValidSample )
+		finishedRead = processData();
+
+		if (finishedRead)
 		{
-			acFilterIR = dcRemoval((float)sample.rawIR, acFilterIR.w, ALPHA);
-			acFilterRed = dcRemoval((float)sample.rawRed, acFilterRed.w, ALPHA);
-			float meanDiffResIR = meanDiff(acFilterIR.result, &meanDiffIR);
-			/*	IF mean vector was fully filed	*/
-			if (meanDiffIR.count >= MEAN_FILTER_SIZE)
-			{
-				/*	toggle a pin here if you want test loop performance	*/
-				/*	GPIO_PortToggle(GPIOB, 1u << 8U);	*/
-
-				/*	low pass filter implementation	*/
-				lowPassFilter(meanDiffResIR, &filter);
-
-#ifdef MAX30100_FILTERED_RAW_OUTPUT
-				sprintf(value, "%d\t", (int)filter.result);
-				USART_Printf(value);
-				sprintf(value, "%d\r\n", (int)acFilterRed.result);
-				USART_Printf(value);
-#endif
-
-#ifndef MAX30100_FIFO_RAW_OUTPUT
-				/*	Beat Detector Algorithm	*/
-				isBeatDetected = checkForSimpleBeat(filter.result, &beat_detector_t, &beat_result);
-				if (isBeatDetected)
-				{
-					canBlinkGreenLed = false;
-					BEAT_LED(); /*	indicate beat signal using red led	*/
-					isSpo2Ready = spo2Calculator(acFilterIR.result, acFilterRed.result, isBeatDetected, &spo2);
-					if (isSpo2Ready)
-					{
-						sprintf(beat_text, "spo2 = %d\r\n", spo2);
-						USART_Printf(beat_text);
-						isSpo2Ready = false;
-					}
-
-					isBeatDetected = false;
-					isConfiableOutput = bpmAvgCalculator(beat_result, bmp_v, &bpm_avg);
-
-					if (isConfiableOutput)
-					{
-						isConfiableOutput = false;
-
-						sprintf(beat_text, "bpm_avg = %d\r\n", bpm_avg);
-						USART_Printf(beat_text);
-					}
-
-					//					sprintf(beat_text, "beat_result = %d\r\n", beat_result);
-					//					USART_Printf(beat_text);
-				}
-#endif
-			}
+			delay();
+			BLINK_BLUE();
+			initVariableToProcess();
+			finishedRead = false;
 		}
-#ifdef MAX30100_FIFO_RAW_OUTPUT
-		canPrint = readFIFO(&irRaw, &redRaw);
-#endif
+
 		/*	TODO Verify if lptmrCounter and lptmrCounter2 can be short type	*/
 		if (currentCounter != lptmrCounter)	/* lptmrCounter change when 10 ms pass */
 		{
@@ -284,7 +269,7 @@ int main(void)
 #ifdef MAX30100_FIFO_RAW_OUTPUT
 				balanceIntesities(redRaw, irRaw);
 #endif
-				//				LED_TOGGLE();	/*Indicate life of system using Green Led	*/
+				/*Indicate life of system using Green Led	*/
 				if (canBlinkGreenLed)
 				{
 					LED_GREEN_TOGGLE();
@@ -303,11 +288,5 @@ int main(void)
 
 			}
 		}
-
-
-#ifdef MAX30100_DEBUG
-		PRINTF("---------------------------------------------\r\n");
-#endif
 	}
-
 }
