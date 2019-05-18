@@ -5,8 +5,13 @@
  *      Author: dell-felipe
  */
 
+
+
 #ifndef MAX30100_MAX30100_H_
 #define MAX30100_MAX30100_H_
+
+#include "init.h"
+#include "vars.h"
 
 //#define MAX30100_DEBUG
 
@@ -83,6 +88,16 @@ typedef enum SamplingRate {
     MAX30100_SAMPLING_RATE_1000HZ         = 0x07
 } SamplingRate;
 
+/*	Functions Prototype	*/
+bool MAX30100_Get_Sample(uint16_t *IR_sample, uint16_t *Red_sample);
+void MAX30100_Init(void);
+void MAX30100_ClearFIFO(void);
+void setLEDCurrents(uint8_t redLedCurrent, uint8_t IRLedCurrent);
+void setSamplingRate(uint8_t samplingRate);
+void setHighresModeEnabled(bool enabled);
+void balanceIntesities(float redLedDC, float IRLedDC);
 
+extern LEDCurrent redLedCurrent;
+extern bool canAdjustRedCurrent;
 
 #endif /* MAX30100_MAX30100_H_ */

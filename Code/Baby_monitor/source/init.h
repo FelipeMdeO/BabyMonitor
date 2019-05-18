@@ -8,7 +8,7 @@
 #ifndef INIT_H_
 #define INIT_H_
 
-//#include <CMSIS/system_MKL02Z4.h>
+
 #include <fsl_debug_console.h>
 #include <Driver_USART.h>
 #include <fsl_lpsci_cmsis.h>
@@ -22,9 +22,11 @@
 
 #include "board.h"
 
+#include "vars.h"
+
 /*								USART Definitions 														*/
 #define APP_USART Driver_USART0
-#define ECHO_BUFFER_LENGTH 8	/*	TODO maybe change it to more bytes	*/
+#define ECHO_BUFFER_LENGTH 8
 
 #define LED_TOGGLE() LED_RED_TOGGLE()
 

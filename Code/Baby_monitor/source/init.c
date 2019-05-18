@@ -11,6 +11,9 @@ volatile uint32_t msTicks = 0;                              /* Variable to store
 volatile bool completionFlag = false;
 volatile bool nakFlag = false;
 
+/*								USART Variables 														*/
+uint8_t g_txBuffer[ECHO_BUFFER_LENGTH] = { 0 }; 	/*	Data buffer 1 byte								*/
+volatile bool txOnGoing = false; 					/*	Variable to identify if data finished transfer	*/
 
 void clearMillis(void)
 {
