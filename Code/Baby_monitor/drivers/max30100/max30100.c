@@ -371,8 +371,7 @@ bool readFIFO(uint16_t *rawIR, uint16_t *rawRed)
 		{
 			/*		*/
 			*rawIR = (buffer[i * 4] << 8) | buffer[1 + i * 4];
-			*rawRed = (buffer[2 + i * 4] << 8) | buffer[3 + i * 4];;
-			GPIO_PortToggle(GPIOB, 1u << 8U); /*	TODO Changed it to function call	*/
+			*rawRed = (buffer[2 + i * 4] << 8) | buffer[3 + i * 4];
 
 #ifdef MAX30100_DEBUG
 			sprintf(value, " S[%d] = %04x\r\n", i, rawIR);

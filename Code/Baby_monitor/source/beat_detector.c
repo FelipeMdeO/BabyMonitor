@@ -261,7 +261,6 @@ bool checkForSimpleBeat(float sample, struct simpleBeatDetector_t* simple_beat_d
 			*beat_result_p = Bpm;
 			return true;
 		}
-
 		else
 			return false;
 		break;

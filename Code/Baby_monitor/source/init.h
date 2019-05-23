@@ -79,6 +79,7 @@ void clearMillis(void);
 void config_lptmr(void);
 
 extern lptmr_config_t lptmrConfig;
+void delay(void);
 
 void init_gpio_pins(void);	/*	Function to init gpio pins	*/
 
@@ -88,5 +89,7 @@ void USART_Printf(const char* string);
 
 void BEAT_LED(void);
 void BLINK_BLUE(void);
+void BLE_ON(void);
+void BLE_OFF(void);
 
 #endif /* INIT_H_ */

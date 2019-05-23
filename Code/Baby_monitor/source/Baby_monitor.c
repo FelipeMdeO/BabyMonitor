@@ -196,7 +196,8 @@ bool processData(void)
 					isSpo2Ready = false;
 					canCalculateBPM = true;
 					canCalculateSpo2 = true;
-					sprintf(beat_text, "bpm_avg = %d \t sp2 = %d \r\n", bpm_avg, spo2);
+//					sprintf(beat_text, "bpm_avg = %d \t sp02 = %d \r\n", bpm_avg, spo2);
+					sprintf(beat_text, "%d / %d", spo2, bpm_avg);
 					USART_Printf(beat_text);
 
 					return true;
@@ -249,16 +250,6 @@ int main(void)
 
 	for(;;)
 	{
-		finishedRead = processData();
-
-		if (finishedRead)
-		{
-			delay();
-			BLINK_BLUE();
-			initVariableToProcess();
-			finishedRead = false;
-		}
-
 		/*	TODO Verify if lptmrCounter and lptmrCounter2 can be short type	*/
 		if (currentCounter != lptmrCounter)	/* lptmrCounter change when 10 ms pass */
 		{
@@ -279,12 +270,27 @@ int main(void)
 					LED_GREEN_OFF();
 				}
 			}
-			/*	Adjust Red Led current balancing with 500 ms (10 ms * 50 = 500 ms)	*/
-			if (lptmrCounter2 > 49)
+			/*	Process new data at every ten seconds (10 ms * 10.000 = 10 s)	*/
+			if (lptmrCounter2 > 1000)
 			{
-				lptmrCounter2 = 0;
-				canAdjustRedCurrent = true;
-				/*	Implement refresh led adjustment	*/
+				BLE_ON();
+				finishedRead = processData();
+
+				if (finishedRead)
+				{
+					clearMillis();
+					while(millis() < 3000);
+					BLE_OFF();
+					lptmrCounter2 = 0;
+					BLINK_BLUE();
+					delay();
+					BLINK_BLUE();
+					delay();
+					BLINK_BLUE();
+					initVariableToProcess();
+					finishedRead = false;
+					canBlinkGreenLed = true;
+				}
 
 			}
 		}

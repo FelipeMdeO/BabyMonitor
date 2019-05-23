@@ -78,11 +78,18 @@ void USART_Printf(const char* string)
 	txOnGoing = 1;
 }
 
+void BLE_Pin_Init(uint8_t logic_level)
+{
+	GPIO_PinWrite(GPIOB, 1U << 8U, logic_level);
+	GPIOB->PDDR |= (1U << 8U); /*!< Enable target LED_BLUE */
+}
+
 void LedInit(void)
 {
 	LED_GREEN_INIT(LOGIC_LED_ON);
 	LED_RED_INIT(LOGIC_LED_OFF);
 	LED_BLUE_INIT(LOGIC_LED_OFF);
+	BLE_Pin_Init(1);	/*	Pin connected at p channel mosfet	*/
 }
 
 void init_gpio_pins(void)
@@ -105,6 +112,7 @@ void init_gpio_pins(void)
 
 	GPIO_PinInit(GPIOB, 8U, &toggle_config);
 
+	BLE_OFF(); /*	Startup code with BLE power off	*/
 	LedInit();
 }
 
@@ -117,15 +125,34 @@ void delay(void)
 	}
 }
 
-void BEAT_LED(void) {
+void BEAT_LED(void)
+{
 	LED_RED_ON();
 	delay();
 	LED_RED_OFF();
 }
 
+void BLE_ON(void)
+{
+	GPIO_PortClear(GPIOB, 1U << 8U); /*!< Turn on target LED_RED */
+//	GPIO_WritePinOutput(GPIOB, 1u << 8U, 0);
+}
+
+void BLE_OFF(void)
+{
+	GPIO_PortSet(GPIOB, 1U << 8U); /*!< Turn off VCC of mosfet */
+//	GPIO_WritePinOutput(GPIOB, 1u << 8U, 1);
+}
+
 void BLINK_BLUE(void)
 {
 	LED_BLUE_ON();
+	delay();
+	delay();
+	delay();
+	delay();
+	delay();
+	delay();
 	delay();
 	LED_BLUE_OFF();
 }
