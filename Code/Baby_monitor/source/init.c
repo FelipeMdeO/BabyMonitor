@@ -144,6 +144,18 @@ void BLE_OFF(void)
 //	GPIO_WritePinOutput(GPIOB, 1u << 8U, 1);
 }
 
+void ALL_LED_ON() {
+	LED_RED_ON();
+	LED_BLUE_ON();
+	LED_GREEN_ON();
+}
+
+void ALL_LED_OFF() {
+	LED_RED_OFF();
+	LED_BLUE_OFF();
+	LED_GREEN_OFF();
+}
+
 void BLINK_BLUE(void)
 {
 	LED_BLUE_ON();

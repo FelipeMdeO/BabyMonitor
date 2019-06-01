@@ -56,7 +56,7 @@ bool spo2Calculator(float irACValue, float redACValue, bool beatDetected, uint8_
 			float irRMS = ir_AC_value_sq_sum / samples_recorded;
 			float redRMS = red_AC_value_sq_sum / samples_recorded;
 			float ac_sq_ratio = 100.0 * logf(redRMS) / logf(irRMS);
-			uint8_t index = 0;
+			volatile uint8_t index = 0;
 
 			if (ac_sq_ratio > 66)
 			{
