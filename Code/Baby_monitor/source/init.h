@@ -93,4 +93,6 @@ void BLE_ON(void);
 void BLE_OFF(void);
 void ALL_LED_ON(void);
 void ALL_LED_OFF(void);
+bool BUTTON_VALUE(void);
+
 #endif /* INIT_H_ */

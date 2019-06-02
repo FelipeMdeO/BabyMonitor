@@ -15,17 +15,16 @@ struct meanDiffFilter_t meanDiffIR;
 struct butterworthFilter_t filter;
 struct simpleBeatDetector_t beat_detector_t;
 
-bool isBeatDetected = false;
-uint16_t beat_result = 0;
-//char beat_text[50] = { 0 };
-uint16_t bmp_v[BPM_VECTOR_SIZE] = { 0 };
-bool isConfiableOutput = false;
+static bool isBeatDetected = false;
+static uint16_t beat_result = 0;
+static uint16_t bmp_v[BPM_VECTOR_SIZE] = { 0 };
+static bool isConfiableOutput = false;
 //uint16_t bpm_avg = 0;
 //uint8_t spo2 = 0;
-bool isSpo2Ready = false;
+static bool isSpo2Ready = false;
 
-bool canCalculateSpo2 = true;
-bool canCalculateBPM = true;
+static bool canCalculateSpo2 = true;
+static bool canCalculateBPM = true;
 
 void initVariableToProcess(void) {
 	/*	Clean up structs to start filter process	*/
@@ -34,6 +33,15 @@ void initVariableToProcess(void) {
 	meanDiffFilterClear(&meanDiffIR);
 	initSimpleBeatDetector(&beat_detector_t);
 	beat_detector_t.state = SIMPLE_BEAT_DETECTOR_WAITING_STABLE;
+
+//	isBeatDetected = false;
+//	beat_result = 0;
+	memset(bmp_v, 0, BPM_VECTOR_SIZE);
+	isConfiableOutput = false;
+	isSpo2Ready = false;
+	canCalculateSpo2 = true;
+	canCalculateBPM = true;
+
 	init_tick();
 }
 

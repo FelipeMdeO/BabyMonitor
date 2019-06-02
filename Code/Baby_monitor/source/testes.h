@@ -12,7 +12,7 @@
 #include "init.h"
 
 
-#define TIME_DELAY_SEC 3
+#define TIME_DELAY_SEC 0
 
 /* TODO working in progess*/
 void initTestes(void);	/*	todo Implementar isso daqui melhor	*/
@@ -20,6 +20,7 @@ void oneShootByButtonToSerial(void);
 void oneShootByButtonToBLE(void);
 void continuosReadToBLE(void);
 void continuosReadToSerial(void);
+void cointinuosReadToSerialIRLed(void);
 void adjustLedParameters(void);
 void executeTestes(void);
 

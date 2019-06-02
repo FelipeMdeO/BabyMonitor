@@ -92,6 +92,9 @@ void BOARD_InitPins(void)
 	/* PORTB8 (pin X) is configured as PTB8 */
 	PORT_SetPinMux(PORTB, 8U, kPORT_MuxAsGpio);
 
+	/* PORTB11 (pin X) is configured as Button input with pull up */
+	PORT_SetPinMux(PORTB, 11U, kPORT_MuxAsGpio);
+
 	SIM->SOPT5 = ((SIM->SOPT5 &
 			/* Mask bits to zero which are setting */
 			(~(SIM_SOPT5_UART0TXSRC_MASK | SIM_SOPT5_UART0RXSRC_MASK)))

@@ -92,6 +92,24 @@ void LedInit(void)
 	BLE_Pin_Init(1);	/*	Pin connected at p channel mosfet	*/
 }
 
+void buttonInit(void) {
+	gpio_pin_config_t button_config =
+	{
+			kGPIO_DigitalInput,
+			0,
+	};
+	port_pin_config_t button_config_port = {
+			kPORT_PullUp, /*	Only this value is acceptable*/
+			kPORT_PassiveFilterEnable,
+			kPORT_LowDriveStrength,
+			kPORT_MuxAsGpio,
+
+	};
+
+	GPIO_PinInit(BOARD_BUTTON_GPIO, BOARD_BUTTON_PIN, &button_config);
+	PORT_SetPinConfig(BOARD_BUTTON_PORT, BOARD_BUTTON_PIN, &button_config_port);
+}
+
 void init_gpio_pins(void)
 {
 	/*
@@ -114,6 +132,9 @@ void init_gpio_pins(void)
 
 	BLE_OFF(); /*	Startup code with BLE power off	*/
 	LedInit();
+
+	buttonInit(); /* Init button pin		*/
+
 }
 
 void delay(void)
@@ -124,6 +145,11 @@ void delay(void)
 		__asm("NOP"); /* delay */
 	}
 }
+
+bool BUTTON_VALUE(void) {
+	return !GPIO_ReadPinInput(BOARD_BUTTON_GPIO, BOARD_BUTTON_PIN);
+}
+
 
 void BEAT_LED(void)
 {

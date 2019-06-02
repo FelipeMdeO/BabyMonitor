@@ -92,6 +92,11 @@
 #define BOARD_TOGGLE_PIN 8U
 #endif
 
+/* Board Button pin*/
+#define BOARD_BUTTON_GPIO GPIOB
+#define BOARD_BUTTON_PORT PORTB
+#define BOARD_BUTTON_PIN 11U
+
 #define LED_RED_INIT(output)                                                 \
     GPIO_PinWrite(BOARD_LED_RED_GPIO, BOARD_LED_RED_GPIO_PIN, output); \
     BOARD_LED_RED_GPIO->PDDR |= (1U << BOARD_LED_RED_GPIO_PIN) /*!< Enable target LED_RED */
