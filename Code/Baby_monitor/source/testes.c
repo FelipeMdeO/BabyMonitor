@@ -8,9 +8,11 @@
 
 #include "testes.h"
 
-char beat_text[50] = { 0 };
 static bool isInitilizedTestes = false;
 static bool canRead = false;
+
+char value[50] = { 0 };
+char newLine[] = "\n";
 
 /* Rotinas de com funcoes individuais para facilitar testes do produto*/
 
@@ -20,11 +22,13 @@ void executeTestes(void) {
 		initTestes();
 
 	/*	Selecione aqui os testes a serem realizados	*/
-	continuosReadToBLE();
+
+	//	continuosReadToBLE();
 	//	continuosReadToSerial();
-	//		oneShootByButtonToBLE();
+	//	oneShootByButtonToBLE();
 	//	oneShootByButtonToSerial();
-	//	cointinuosReadToSerialIRLed();
+	//	continuosReadToSerialIRLed();
+	rCalibration();
 
 	if(!canRead) {
 		LED_GREEN_ON();
@@ -44,8 +48,8 @@ static void oneShootByButton(void) {
 	uint16_t bpm_avg = 0;
 	while(!processData(&spo2, &bpm_avg));
 
-	sprintf(beat_text, "%d / %d", spo2, bpm_avg);
-	USART_Printf(beat_text);
+	sprintf(value, "%d / %d", spo2, bpm_avg);
+	USART_Printf(value);
 	canRead = false;
 }
 
@@ -57,11 +61,10 @@ static void continuosRead(void) {
 	initVariableToProcess();
 	while(!processData(&spo2, &bpm_avg));
 
-	sprintf(beat_text, "%d / %d", spo2, bpm_avg);
-	USART_Printf(beat_text);
+	sprintf(value, "%d / %d", spo2, bpm_avg);
+	USART_Printf(value);
 
 }
-
 
 /*******************************************************************************
  * Public Functions
@@ -72,9 +75,9 @@ void initTestes(void) {
 	ALL_LED_OFF();
 }
 
-void cointinuosReadToSerialIRLed(void) {
+void continuosReadToSerialIRLed(void) {
 	/*
-	 * @brief  cointinuosReadToSerialIRLed
+	 * @brief  continuosReadToSerialIRLed
 	 * @details     Function to read data from led infra red and output it to serial reader
 	 * The output is sensor data filtered but
 	 * @param[in] void
@@ -86,83 +89,85 @@ void cointinuosReadToSerialIRLed(void) {
 	 *
 	 */
 	// TODO Test this function!
-	char value[20] = { 0 };
-
-	initVariableToProcess();
-	bool isValidSample = false;
-	struct fifo_t sample;
-	struct dcFilter_t acFilterIR;
-	struct dcFilter_t acFilterRed;
-	struct meanDiffFilter_t meanDiffIR;
-	struct butterworthFilter_t filter;
-
-	while(1) {
-		isValidSample = MAX30100_Get_Sample(&sample.rawIR, &sample.rawRed);
-		if( isValidSample )
-		{
-			acFilterIR = dcRemoval((float)sample.rawIR, acFilterIR.w, ALPHA);
-			acFilterRed = dcRemoval((float)sample.rawRed, acFilterRed.w, ALPHA);
-			float meanDiffResIR = meanDiff(acFilterIR.result, &meanDiffIR);
-			/*	IF mean vector was fully filed	*/
-			if (meanDiffIR.count >= MEAN_FILTER_SIZE)
-			{
-				/*	toggle a pin here if you want test loop performance	*/
-				/*	GPIO_PortToggle(GPIOB, 1u << 8U);	*/
-
-				/*	low pass filter implementation	*/
-				lowPassFilter(meanDiffResIR, &filter);
-				sprintf(value, "%d\t\n", (int)filter.result);
-				USART_Printf(value);
-			}
-		}
-	}
+	//	initVariableToProcess();
+	//	while(1) {
+	//		isValidSample = MAX30100_Get_Sample(&sample.rawIR, &sample.rawRed);
+	//		if( isValidSample )
+	//		{
+	//			acFilterIR = dcRemoval((float)sample.rawIR, acFilterIR.w, ALPHA);
+	//			acFilterRed = dcRemoval((float)sample.rawRed, acFilterRed.w, ALPHA);
+	//			float meanDiffResIR = meanDiff(acFilterIR.result, &meanDiffIR);
+	//			/*	IF mean vector was fully filed	*/
+	//			if (meanDiffIR.count >= MEAN_FILTER_SIZE)
+	//			{
+	//				/*	toggle a pin here if you want test loop performance	*/
+	//				/*	GPIO_PortToggle(GPIOB, 1u << 8U);	*/
+	//
+	//				/*	low pass filter implementation	*/
+	//				lowPassFilter(meanDiffResIR, &filter);
+	//				sprintf(value, "%d\t\n", (int)filter.result);
+	//				USART_Printf(value);
+	//				initVariableToProcess();
+	//			}
+	//		}
+	//	}
 }
-		/* leitura do dado a partir de um botao com escrita pela serial	*/
-		void oneShootByButtonToSerial(void) {
-			if(BUTTON_VALUE()) {
-				canRead = true;
-				initVariableToProcess();
-			}
-			if (canRead) oneShootByButton();
-		}
+/* leitura do dado a partir de um botao com escrita pela serial	*/
+void oneShootByButtonToSerial(void) {
+	if(BUTTON_VALUE()) {
+		canRead = true;
+		initVariableToProcess();
+	}
+	if (canRead) oneShootByButton();
+}
 
-		/* leitura do dado a partir de um botao com escrita por bluetooth	*/
-		void oneShootByButtonToBLE(void) {
-			BLE_ON();
-			if(BUTTON_VALUE()) {
-				canRead = true;
-				initVariableToProcess();
-			}
-			if (canRead) oneShootByButton();
-		}
+/* leitura do dado a partir de um botao com escrita por bluetooth	*/
+void oneShootByButtonToBLE(void) {
+	BLE_ON();
+	if(BUTTON_VALUE()) {
+		canRead = true;
+		initVariableToProcess();
+	}
+	if (canRead) oneShootByButton();
+}
 
-		/* leitura continua dos dados com um delay de 3 segundos e escrita via serial	*/
-		void continuosReadToSerial(void) {
+/* leitura continua dos dados com um delay de 3 segundos e escrita via serial	*/
+void continuosReadToSerial(void) {
 
-			clearMillis();
-			LED_RED_ON();
-			while(millis() < TIME_DELAY_SEC * 1000); /*	delay by 3 second	*/
-			LED_RED_OFF();
-			initVariableToProcess();
-			continuosRead();
+	clearMillis();
+	LED_RED_ON();
+	while(millis() < TIME_DELAY_SEC * 1000); /*	delay by 3 second	*/
+	LED_RED_OFF();
+	continuosRead();
+	USART_Printf(newLine);
+}
 
-		}
+/* leitura continua dos dados com um delay de 3 segundos e escrita via bluetooth		*/
+void continuosReadToBLE(void) {
+	BLE_ON();
+	clearMillis();
+	BLINK_BLUE();
+	while(millis() < TIME_DELAY_SEC * 1000); /*	delay by 3 second	*/
+	continuosRead();
+}
 
-		/* leitura continua dos dados com um delay de 3 segundos e escrita via bluetooth		*/
-		void continuosReadToBLE(void) {
-			BLE_ON();
-			clearMillis();
-			LED_RED_ON();
-			while(millis() < TIME_DELAY_SEC * 1000); /*	delay by 3 second	*/
-			LED_RED_OFF();
-			initVariableToProcess();
-			continuosRead();
-		}
+void rCalibration(void) {
 
+	volatile float R = 0;
+	LED_RED_ON();
+	clearMillis();
+	while(millis() < 1000); /*	wait for 1 second	*/
+	LED_RED_OFF();
+	while(!processR(&R));
+	uint32_t aux = (uint32_t) (R*1000000);
+	sprintf(value, "%d", aux);
+	USART_Printf(value);
+	USART_Printf(newLine);
 
+}
 
-		/*	Teste para ajuste dos parametros dos leds	*/
-		//todo - implementar
+/*	Teste para ajuste dos parametros dos leds	*/
+//todo - implementar
 
-		/*	Rotinas com testes de consumo	*/
-		//todo - implementar
+/*	Rotinas com testes de consumo	*/
+//todo - implementar

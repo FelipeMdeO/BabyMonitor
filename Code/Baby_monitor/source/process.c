@@ -34,8 +34,8 @@ void initVariableToProcess(void) {
 	initSimpleBeatDetector(&beat_detector_t);
 	beat_detector_t.state = SIMPLE_BEAT_DETECTOR_WAITING_STABLE;
 
-//	isBeatDetected = false;
-//	beat_result = 0;
+	//	isBeatDetected = false;
+	//	beat_result = 0;
 	memset(bmp_v, 0, BPM_VECTOR_SIZE);
 	isConfiableOutput = false;
 	isSpo2Ready = false;
@@ -76,19 +76,13 @@ bool processData(uint8_t* spo2, uint16_t* bpm_avg)
 			{
 				canBlinkGreenLed = false;
 				BEAT_LED(); /*	indicate beat signal using red led	*/
+				// todo implementar aqui uma funcao que faz a verificacao de diferenca dc entre os leds.
 				if (canCalculateSpo2)
 				{
 					isSpo2Ready = spo2Calculator(acFilterIR.result, acFilterRed.result, isBeatDetected, spo2);
 					if(isSpo2Ready)
 						canCalculateSpo2 = false;
 				}
-				//					if (isSpo2Ready)
-				//					{
-				//						sprintf(beat_text, "spo2 = %d\r\n", spo2);
-				//						USART_Printf(beat_text);
-				//						isSpo2Ready = false;
-				//					}
-
 				isBeatDetected = false;
 				if (canCalculateBPM)
 				{
@@ -103,9 +97,9 @@ bool processData(uint8_t* spo2, uint16_t* bpm_avg)
 					isSpo2Ready = false;
 					canCalculateBPM = true;
 					canCalculateSpo2 = true;
-//					sprintf(beat_text, "bpm_avg = %d \t sp02 = %d \r\n", bpm_avg, spo2);
-//					sprintf(beat_text, "%d / %d", spo2, bpm_avg);
-//					USART_Printf(beat_text);
+					//					sprintf(beat_text, "bpm_avg = %d \t sp02 = %d \r\n", bpm_avg, spo2);
+					//					sprintf(beat_text, "%d / %d", spo2, bpm_avg);
+					//					USART_Printf(beat_text);
 
 					return true;
 				}
@@ -119,6 +113,41 @@ bool processData(uint8_t* spo2, uint16_t* bpm_avg)
 #ifdef MAX30100_FIFO_RAW_OUTPUT
 	canPrint = readFIFO(&irRaw, &redRaw);
 #endif
+
+	return false;
+}
+
+bool processR(volatile float *R)
+{
+
+	isValidSample = MAX30100_Get_Sample(&sample.rawIR, &sample.rawRed);
+	if( isValidSample )
+	{
+		acFilterIR = dcRemoval((float)sample.rawIR, acFilterIR.w, ALPHA);
+		acFilterRed = dcRemoval((float)sample.rawRed, acFilterRed.w, ALPHA);
+		float meanDiffResIR = meanDiff(acFilterIR.result, &meanDiffIR);
+		/*	IF mean vector was fully filed	*/
+		if (meanDiffIR.count >= MEAN_FILTER_SIZE)
+		{
+			/*	low pass filter implementation	*/
+			lowPassFilter(meanDiffResIR, &filter);
+
+			/*	Beat Detector Algorithm	*/
+			isBeatDetected = checkForSimpleBeat(filter.result, &beat_detector_t, &beat_result);
+			if (isBeatDetected)
+			{
+				canBlinkGreenLed = false;
+				BEAT_LED(); /*	indicate beat signal using red led	*/
+				// todo implementar aqui uma funcao que faz a verificacao de diferenca dc entre os leds.
+					isSpo2Ready = RCalculator(acFilterIR.result, acFilterRed.result, isBeatDetected, R);
+				isBeatDetected = false;
+			}
+		}
+	}
+	if (isSpo2Ready) {
+		initVariableToProcess();
+		return true;
+	}
 
 	return false;
 }

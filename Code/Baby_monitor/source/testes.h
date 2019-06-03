@@ -20,8 +20,10 @@ void oneShootByButtonToSerial(void);
 void oneShootByButtonToBLE(void);
 void continuosReadToBLE(void);
 void continuosReadToSerial(void);
-void cointinuosReadToSerialIRLed(void);
+void continuosReadToSerialIRLed(void);
 void adjustLedParameters(void);
 void executeTestes(void);
+void rCalibration(void);
+
 
 #endif /* TESTES_H_ */

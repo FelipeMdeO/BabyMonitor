@@ -8,6 +8,8 @@
 #ifndef PROCESS_H_
 #define PROCESS_H_
 
+#define DEBUG_TEST
+
 #include "init.h"
 #include "beat_detector.h"
 #include "spo2.h"
@@ -19,5 +21,6 @@
 
 void initVariableToProcess(void);
 bool processData(uint8_t* spo2, uint16_t* bpm_avg);
+bool processR(volatile float *R);
 
 #endif /* PROCESS_H_ */

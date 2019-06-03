@@ -138,8 +138,6 @@ int main(void)
 
 	initVariableToProcess();
 
-
-
 	for(;;)
 	{
 		executeTestes();
