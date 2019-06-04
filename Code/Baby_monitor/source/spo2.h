@@ -14,7 +14,6 @@
 
 #define CALCULATE_EVERY_N_BEATS 4
 
-
 bool spo2Calculator(float irACValue, float redACValue, bool beatDetected, uint8_t *spo2);
 bool spo2Calculator2Method(float irACValue, float irDCValue, float redACValue, float redDCValue, bool beatDetected, uint8_t *spo2);
 bool RCalculator(float irACValue, float redACValue, bool beatDetected, volatile float *R);

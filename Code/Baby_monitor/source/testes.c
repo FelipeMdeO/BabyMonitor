@@ -27,8 +27,8 @@ void executeTestes(void) {
 	//	continuosReadToSerial();
 	//	oneShootByButtonToBLE();
 	//	oneShootByButtonToSerial();
-	//	continuosReadToSerialIRLed();
-	rCalibration();
+		continuosReadToSerialIRLed();
+	//	rCalibration();
 
 	if(!canRead) {
 		LED_GREEN_ON();
@@ -79,7 +79,7 @@ void continuosReadToSerialIRLed(void) {
 	/*
 	 * @brief  continuosReadToSerialIRLed
 	 * @details     Function to read data from led infra red and output it to serial reader
-	 * The output is sensor data filtered but
+	 * The output is sensor data filtered
 	 * @param[in] void
 	 * @param[out]
 	 * @return void
@@ -88,29 +88,15 @@ void continuosReadToSerialIRLed(void) {
 	 * date 2 de jun de 2019
 	 *
 	 */
-	// TODO Test this function!
-	//	initVariableToProcess();
-	//	while(1) {
-	//		isValidSample = MAX30100_Get_Sample(&sample.rawIR, &sample.rawRed);
-	//		if( isValidSample )
-	//		{
-	//			acFilterIR = dcRemoval((float)sample.rawIR, acFilterIR.w, ALPHA);
-	//			acFilterRed = dcRemoval((float)sample.rawRed, acFilterRed.w, ALPHA);
-	//			float meanDiffResIR = meanDiff(acFilterIR.result, &meanDiffIR);
-	//			/*	IF mean vector was fully filed	*/
-	//			if (meanDiffIR.count >= MEAN_FILTER_SIZE)
-	//			{
-	//				/*	toggle a pin here if you want test loop performance	*/
-	//				/*	GPIO_PortToggle(GPIOB, 1u << 8U);	*/
-	//
-	//				/*	low pass filter implementation	*/
-	//				lowPassFilter(meanDiffResIR, &filter);
-	//				sprintf(value, "%d\t\n", (int)filter.result);
-	//				USART_Printf(value);
-	//				initVariableToProcess();
-	//			}
-	//		}
-	//	}
+
+	float irValue = 0;
+
+	while(!processIRData(&irValue));
+    signed long int aux = (signed long int) (irValue*1000000);
+	sprintf(value, "%d", aux);
+	USART_Printf(value);
+	USART_Printf(newLine);
+
 }
 /* leitura do dado a partir de um botao com escrita pela serial	*/
 void oneShootByButtonToSerial(void) {

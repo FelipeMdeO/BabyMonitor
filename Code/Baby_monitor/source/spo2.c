@@ -7,10 +7,10 @@
 
 #include "spo2.h"
 
-uint32_t volatile samples_recorded = 0;
-uint32_t beat_detected_num = 0;
-float ir_AC_value_sq_sum = 0;
-float red_AC_value_sq_sum = 0;
+static volatile uint32_t samples_recorded = 0;
+static uint32_t beat_detected_num = 0;
+static float ir_AC_value_sq_sum = 0;
+static float red_AC_value_sq_sum = 0;
 
 
 void resetVariables(void)

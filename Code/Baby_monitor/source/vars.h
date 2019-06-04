@@ -18,11 +18,6 @@
 //#define MAX30100_DC_RAW_OUTPUT
 //#define MAX30100_BEAT_DETECTOR_OUTPUT
 
-extern volatile uint32_t samples_recorded;
-extern uint32_t beat_detected_num;
-extern float ir_AC_value_sq_sum;
-extern float red_AC_value_sq_sum;
-
 extern bool canBlinkGreenLed;
 
 #endif /* VARS_H_ */

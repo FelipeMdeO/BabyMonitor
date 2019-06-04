@@ -11,6 +11,9 @@
 #include "process.h"
 #include "init.h"
 
+#include "stdio.h"
+#include "stdlib.h"
+#include "string.h"
 
 #define TIME_DELAY_SEC 0
 

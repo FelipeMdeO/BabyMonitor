@@ -17,10 +17,9 @@
 
 #include <stdbool.h>
 
-
-
 void initVariableToProcess(void);
 bool processData(uint8_t* spo2, uint16_t* bpm_avg);
 bool processR(volatile float *R);
+bool processIRData(float *ir);
 
 #endif /* PROCESS_H_ */

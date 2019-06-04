@@ -139,7 +139,7 @@ bool processR(volatile float *R)
 				canBlinkGreenLed = false;
 				BEAT_LED(); /*	indicate beat signal using red led	*/
 				// todo implementar aqui uma funcao que faz a verificacao de diferenca dc entre os leds.
-					isSpo2Ready = RCalculator(acFilterIR.result, acFilterRed.result, isBeatDetected, R);
+				isSpo2Ready = RCalculator(acFilterIR.result, acFilterRed.result, isBeatDetected, R);
 				isBeatDetected = false;
 			}
 		}
@@ -150,4 +150,23 @@ bool processR(volatile float *R)
 	}
 
 	return false;
+}
+
+bool processIRData(float *ir) {
+	isValidSample = MAX30100_Get_Sample(&sample.rawIR, &sample.rawRed);
+	if( isValidSample )
+	{
+		acFilterIR = dcRemoval((float)sample.rawIR, acFilterIR.w, ALPHA);
+		float meanDiffResIR = meanDiff(acFilterIR.result, &meanDiffIR);
+		/*	IF mean vector was fully filed	*/
+		if (meanDiffIR.count >= MEAN_FILTER_SIZE)
+		{
+			/*	toggle a pin here if you want test loop performance	*/
+			/*	GPIO_PortToggle(GPIOB, 1u << 8U);	*/
+
+			/*	low pass filter implementation	*/
+			lowPassFilter(meanDiffResIR, &filter);
+			*ir = filter.result;
+		}
+	}
 }
