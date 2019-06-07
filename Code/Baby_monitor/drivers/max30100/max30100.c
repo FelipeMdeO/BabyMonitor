@@ -7,6 +7,7 @@
 
 #include "max30100.h"
 
+#ifdef MAX30100
 LEDCurrent redLedCurrent = STARTING_RED_LED_CURRENT;
 bool canAdjustRedCurrent = true;
 
@@ -391,3 +392,4 @@ bool readFIFO(uint16_t *rawIR, uint16_t *rawRed)
 #endif
 
 }
+#endif

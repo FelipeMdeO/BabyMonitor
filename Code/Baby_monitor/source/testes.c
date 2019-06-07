@@ -27,8 +27,9 @@ void executeTestes(void) {
 	//	continuosReadToSerial();
 	//	oneShootByButtonToBLE();
 	//	oneShootByButtonToSerial();
-		continuosReadToSerialIRLed();
+	//		continuosReadToSerialIRLed();
 	//	rCalibration();
+	max30102Start();
 
 	if(!canRead) {
 		LED_GREEN_ON();
@@ -73,6 +74,20 @@ static void continuosRead(void) {
 void initTestes(void) {
 	isInitilizedTestes = true;
 	ALL_LED_OFF();
+}
+
+void max30102Start(void)
+{
+	uint8_t id = 0;
+	volatile bool result = false;
+	result = MAX30102_Read_Part_Id(&id);
+
+	if (result)
+		printf("Sensor Encontrado\n");
+	else
+		printf("Sensor N encontrado\n");
+
+	(void)MAX30102_Init();
 }
 
 void continuosReadToSerialIRLed(void) {

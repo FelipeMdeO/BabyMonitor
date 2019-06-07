@@ -134,7 +134,10 @@ int main(void)
 	I2C_Init();
 
 	/*	MAX30100 initialization	*/
+	// TODO Find Best method to define between max30100 and max30102
+#ifdef MAX30100
 	MAX30100_Init();
+#endif
 
 	initVariableToProcess();
 

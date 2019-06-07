@@ -10,6 +10,7 @@
 
 #include "process.h"
 #include "init.h"
+#include "max30102/max30102.h"
 
 #include "stdio.h"
 #include "stdlib.h"
@@ -27,6 +28,7 @@ void continuosReadToSerialIRLed(void);
 void adjustLedParameters(void);
 void executeTestes(void);
 void rCalibration(void);
+void max30102Start(void);
 
 
 #endif /* TESTES_H_ */

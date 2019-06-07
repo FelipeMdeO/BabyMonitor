@@ -169,4 +169,5 @@ bool processIRData(float *ir) {
 			*ir = filter.result;
 		}
 	}
+	return isValidSample;
 }

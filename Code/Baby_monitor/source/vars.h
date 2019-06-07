@@ -18,6 +18,12 @@
 //#define MAX30100_DC_RAW_OUTPUT
 //#define MAX30100_BEAT_DETECTOR_OUTPUT
 
+#define MAX30102
+#define MAX30102_DEBUG
+
 extern bool canBlinkGreenLed;
+
+extern uint8_t redLedCurrent;
+extern uint8_t irLedCurrent;
 
 #endif /* VARS_H_ */
