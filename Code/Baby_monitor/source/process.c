@@ -171,3 +171,9 @@ bool processIRData(float *ir) {
 	}
 	return isValidSample;
 }
+
+bool originalLedData(float *ir, float *red) {
+	isValidSample = MAX30100_Get_Sample(*ir, *red);
+	return isValidSample;
+}
+

@@ -109,6 +109,7 @@ void LPTMR_LED_HANDLER(void)
 int main(void)
 
 {
+
 	init_tick();
 
 	BOARD_InitPins();
@@ -140,6 +141,7 @@ int main(void)
 #endif
 
 	initVariableToProcess();
+//	MAX30102_Read_All_Reg();
 
 	for(;;)
 	{

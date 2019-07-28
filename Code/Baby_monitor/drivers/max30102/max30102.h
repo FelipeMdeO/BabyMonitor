@@ -63,6 +63,7 @@ typedef enum Mode {
 //powerLevel = 0x7F, 25.4mA - Presence detection of ~8 inch
 //powerLevel = 0xFF, 50.0mA - Presence detection of ~12 inch
 typedef enum LEDCurrent {
+	MAX30102_LED_CURRENT_DEFAULT 	  = 0x24, /* ~7 mA */
 	MAX30102_LED_CURRENT_MIN          = 0x00,
 	MAX30102_LED_CURRENT_MID          = 0x7F,
 	MAX30102_LED_CURRENT_MAX          = 0xFF,
@@ -95,13 +96,22 @@ typedef enum SamplingRate {
 	MAX30102_SAMPLING_RATE_3200HZ         = 0x07
 } SamplingRate;
 
-
+typedef enum SampleAveraging {
+	MAX30102_SAMPLE_AVERAGE_1			  = 0x0,
+	MAX30102_SAMPLE_AVERAGE_2			  = 0x1,
+	MAX30102_SAMPLE_AVERAGE_4			  = 0x2,
+	MAX30102_SAMPLE_AVERAGE_8			  = 0x3,
+	MAX30102_SAMPLE_AVERAGE_16			  = 0x4,
+	MAX30102_SAMPLE_AVERAGE_32			  = 0x5
+} SampleAveraging;
 
 /*	Functions Prototype	*/
 bool MAX30102_Read_Part_Id(uint8_t *id);
 bool MAX30102_Read_Part_Rev(uint8_t *rev);
 void MAX30102_Init(void);
 void MAX30102_Read_All_Reg(void);
+bool MAX30102_Get_Sample(uint32_t *IR_sample, uint32_t *Red_sample);
+void MAX30102_Print_Samples(void);
 
 #endif
 

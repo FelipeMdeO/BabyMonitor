@@ -29,6 +29,6 @@ void adjustLedParameters(void);
 void executeTestes(void);
 void rCalibration(void);
 void max30102Start(void);
-
+void max30102continuosReadToSerial(void);
 
 #endif /* TESTES_H_ */
