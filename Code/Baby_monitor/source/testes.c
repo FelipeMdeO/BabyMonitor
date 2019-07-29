@@ -14,6 +14,8 @@ static bool canRead = false;
 char value[50] = { 0 };
 const char newLine[] = "\n";
 
+static void continuousReadTemp(void);
+
 /* Rotinas de com funcoes individuais para facilitar testes do produto*/
 
 void executeTestes(void) {
@@ -29,7 +31,8 @@ void executeTestes(void) {
 	//	oneShootByButtonToSerial();
 	//		continuosReadToSerialIRLed();
 	//	rCalibration();
-	max30102continuosReadToSerial();
+//	max30102continuosReadToSerial();
+	continuousReadTemp();
 
 //	if(!canRead) {
 //		LED_GREEN_ON();
@@ -65,6 +68,15 @@ static void continuosRead(void) {
 	sprintf(value, "%d / %d", spo2, bpm_avg);
 	USART_Printf(value);
 
+}
+
+static void continuousReadTemp(void)
+{
+	float temperature = 0;
+	if(MAX30102_READ_TEMP(&temperature))
+	{
+		printf("Temperature * 100 = %d\r\n", (int)(temperature*100));
+	}
 }
 
 /*******************************************************************************

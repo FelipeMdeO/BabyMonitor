@@ -38,7 +38,7 @@
 #define MAX30102_DIETEMPINT  		0x1F
 #define MAX30102_DIETEMPFRAC  		0x20
 #define MAX30102_DIETEMPCONFIG  	0x21
-
+#define MAX30102_CAN_USE_TEMP_INT   0x01
 // Proximity Function Registers
 //#define MAX30102_PROXINTTHRESH  	0x30; This register was removed in revision 1
 
@@ -112,6 +112,7 @@ void MAX30102_Init(void);
 void MAX30102_Read_All_Reg(void);
 bool MAX30102_Get_Sample(uint32_t *IR_sample, uint32_t *Red_sample);
 void MAX30102_Print_Samples(void);
+bool MAX30102_READ_TEMP(float * temperature);
 
 #endif
 

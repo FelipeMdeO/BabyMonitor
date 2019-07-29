@@ -242,7 +242,37 @@ static void MAX30102_CLEAR_FIFO(void)
 	I2C_WriteReg(MAX30102_DEVICE, 0x06, 0x0);
 }
 
-/*******************  Read Part Id  *********************/
+static void MAX30102_TEMP_INT(bool isEnable)
+{
+	/*
+	 * @brief  MAX30102E_TEMP_INT
+	 * This function enable interruption of indicate temperature conversion end
+	 * @details
+	 * @param[in] void
+	 * @param[out]
+	 * @return void
+	 *
+	 * author dell-felipe
+	 * date 28 de jul de 2019
+	 *
+	 */
+	uint8_t readBuff = 0;
+	I2C_ReadRegs(MAX30102_DEVICE, MAX30102_INTENABLE2, &readBuff, 1);
+
+#ifdef MAX30102_DEBUG
+	PRINTF("The old value to MAX30102_INTENABLE2 is: 0x%x \r\n", readBuff >> 1);
+#endif
+
+	/* MAX30102_FIFOCONFIG setup to INPUT samples  */
+	I2C_WriteReg(MAX30102_DEVICE, MAX30102_INTENABLE2, isEnable << 1);
+
+#ifdef MAX30102_DEBUG
+	I2C_ReadRegs(MAX30102_DEVICE, MAX30102_INTENABLE2, &readBuff, 1);
+	PRINTF("The new value to MAX30102_INTENABLE2 is: 0x%x \r\n", readBuff >> 1);
+#endif
+}
+
+/*******************  MAX30102_Init  *********************/
 void MAX30102_Init(void)
 {
 	//	MAX30102_RESET(); // Uncomment to reset sensor !
@@ -252,6 +282,7 @@ void MAX30102_Init(void)
 	setPulseWidth(MAX30102_PULSE_WIDTH_411US_ADC_18);
 	setSampleAverage(MAX30102_SAMPLE_AVERAGE_4);
 	setSPO2_ADC_Range(0b01);
+	MAX30102_TEMP_INT(MAX30102_CAN_USE_TEMP_INT);
 	MAX30102_CLEAR_FIFO();
 }
 
@@ -314,12 +345,12 @@ void MAX30102_Print_Samples(void)
 	/* Read Fifo write pointer */
 	I2C_ReadRegs(MAX30102_DEVICE, MAX30102_FIFOWRITEPTR, readBuff, 3);
 
-//	PRINTF("Value of WRP = 0x%x\r\n", readBuff[0]);
-//	PRINTF("Value of OVF = 0x%x\r\n", readBuff[1]);
-//	PRINTF("Value of RD_PTR = 0x%x\r\n", readBuff[2]);
+	//	PRINTF("Value of WRP = 0x%x\r\n", readBuff[0]);
+	//	PRINTF("Value of OVF = 0x%x\r\n", readBuff[1]);
+	//	PRINTF("Value of RD_PTR = 0x%x\r\n", readBuff[2]);
 
 	int numberOfSamples = readBuff[0] - readBuff[2];
-//	PRINTF("Nsamples = %d\r\n", numberOfSamples);
+	//	PRINTF("Nsamples = %d\r\n", numberOfSamples);
 
 	if(numberOfSamples < 0 )	{
 		numberOfSamples += 32;
@@ -377,5 +408,63 @@ void MAX30102_Read_All_Reg(void)
 	PRINTF("MAX30102_MULTILEDCONFIG1 = 0x%x\n", reg);
 	I2C_ReadRegs(MAX30102_DEVICE, MAX30102_MULTILEDCONFIG2, &reg, 1);
 	PRINTF("MAX30102_MULTILEDCONFIG2 = 0x%x\n", reg);
+}
+/******************** end MAX30102_Read_All_Reg  **********************/
+
+/******************** MAX30102_READ_TEMP **********************/
+bool MAX30102_READ_TEMP(float *temperature)
+{
+	/*
+	 * @brief  MAX30102_READ_TEMP
+	 * @details
+	 * This function can read temperature value of max30102
+	 * Need attention because this function generate delay
+	 * @param[in] float*
+	 * @param[out]
+	 * @return bool with value of temperature readed
+	 *
+	 * author dell-felipe
+	 * date 28 de jul de 2019
+	 *
+	 */
+
+	// Step 1: Config die temperature register to take 1 temperature sample
+
+	uint8_t readBuff[1] = { 0 };
+	bool isTempReady = false;
+	uint16_t count = 0;
+	int8_t tempInteger = 0;
+	uint8_t tempFrac = 0;
+
+	I2C_WriteReg(MAX30102_DEVICE, MAX30102_DIETEMPCONFIG, 0b1);
+	while (!isTempReady)
+	{
+		count++;
+		//Check to see if DIE_TEMP_RDY interrupt is set
+		I2C_ReadRegs(MAX30102_DEVICE, MAX30102_INTSTAT2, readBuff, 1);
+		if ((readBuff[0] >> 1) == true && MAX30102_CAN_USE_TEMP_INT) // to this work is necessary REG 0x03 are enable
+		{
+			// Step 2: Read die temperature register (integer)
+			I2C_ReadRegs(MAX30102_DEVICE, MAX30102_DIETEMPINT, readBuff, 1);
+			tempInteger = readBuff[0];
+			I2C_ReadRegs(MAX30102_DEVICE, MAX30102_DIETEMPFRAC, readBuff, 1);
+			tempFrac = readBuff[0];
+			// Step 3: Calculate temperature (datasheet pg. 23)
+			*temperature = (float)tempInteger + ((float)tempFrac * 0.0625);
+			return true;
+		}
+		else
+		{
+			//Let's not over overcharge the I2C bus
+			volatile uint32_t i = 0;
+			for (i = 0; i < 500; ++i)
+			{
+				__asm("NOP"); /* delay */
+			}
+		}
+		if (count > 1000) return false; // To detect falta in read temp
+	}
+	return false;
+
 }
 /******************** end MAX30102_Read_All_Reg  **********************/
